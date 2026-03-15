@@ -1,0 +1,247 @@
+/* =================================================
+   TAILWIND IMPORT
+   NU MODIFICA
+================================================= */
+
+@import "tailwindcss";
+
+
+
+/* =================================================
+   GLOBAL VARIABLES
+   AICI POTI SCHIMBA CULORILE DE BAZA
+================================================= */
+
+:root {
+  --background: #020617;
+  --foreground: #ffffff;
+}
+
+
+
+/* =================================================
+   BACKGROUND SITE
+   AICI MODIFICI FUNDALUL SITE-ULUI
+   poti schimba imaginea sau gradientul
+================================================= */
+
+html, body {
+  height: 100%;
+}
+
+body {
+
+  /* culoare text */
+  color: var(--foreground);
+
+  /* font fallback daca google font nu merge */
+  font-family: Arial, Helvetica, sans-serif;
+
+}
+
+
+
+/* =================================================
+   FLOAT ANIMATION
+   FOLOSIT PENTRU ICONURILE DIN HERO
+================================================= */
+
+@keyframes float {
+
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-12px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+
+}
+
+.animate-float{
+  animation: float 4s ease-in-out infinite;
+}
+
+
+
+/* =================================================
+   STARS EFFECT
+   DACA VREI SA ADAUGI STELE PE FUNDAL
+================================================= */
+
+.stars::after {
+
+  content: "";
+
+  position: absolute;
+
+  width: 2px;
+  height: 2px;
+
+  background: white;
+
+  box-shadow:
+    200px 300px white,
+    400px 800px white,
+    900px 200px white,
+    1200px 600px white,
+    700px 900px white,
+    1500px 300px white,
+    1600px 700px white,
+    300px 1200px white,
+    1100px 1000px white,
+    1700px 500px white;
+
+}
+
+body.classic {
+background: #0f172a !important;
+}
+
+
+
+/* =================================================
+   FADE IN UP ANIMATION
+   FOLOSIT PENTRU HERO CARD SI CTA
+================================================= */
+
+@keyframes fade-in-up {
+
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out both;
+}
+
+
+
+/* =================================================
+   SMOOTH SCROLLBAR - PREMIUM
+================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.4), rgba(168, 85, 247, 0.4));
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.6), rgba(168, 85, 247, 0.6));
+}
+
+
+
+/* =================================================
+   SELECTION COLOR
+================================================= */
+
+::selection {
+  background: rgba(99, 102, 241, 0.4);
+  color: white;
+}
+
+
+
+/* =================================================
+   PULSE GLOW ANIMATION
+================================================= */
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+
+
+/* =================================================
+   SLIDE IN LEFT / RIGHT
+================================================= */
+
+@keyframes slide-in-left {
+  0% { opacity: 0; transform: translateX(-40px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in-right {
+  0% { opacity: 0; transform: translateX(40px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.6s ease-out both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.6s ease-out both;
+}
+
+
+
+/* =================================================
+   GRADIENT TEXT SHIMMER
+================================================= */
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-shimmer {
+  background-size: 200% auto;
+  animation: shimmer 4s linear infinite;
+}
+
+
+
+/* =================================================
+   SCALE BOUNCE
+================================================= */
+
+@keyframes scale-bounce {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-scale-bounce {
+  animation: scale-bounce 0.5s ease-out both;
+}
+
+
+
+/* =================================================
+   SMOOTH SCROLL BEHAVIOR
+================================================= */
+
+html {
+  scroll-behavior: smooth;
+}

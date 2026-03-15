@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  name            String?
+  email           String    @unique
+  password        String
+  role            String    @default("user") // user | admin
+  plan            String    @default("free") // free | premium
+  emailVerified   Boolean   @default(false)
+  verifyToken     String?
+  resetToken      String?
+  resetTokenExp   DateTime?
+  avatar          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  files           File[]
+  sessions        Session[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model File {
+  id          String   @id @default(uuid())
+  userId      String
+  fileName    String
+  fileSize    Int
+  fileType    String
+  toolUsed    String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Visit {
+  id        String   @id @default(uuid())
+  page      String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model SiteStats {
+  id              String @id @default("global")
+  totalVisits     Int    @default(0)
+  totalUsers      Int    @default(0)
+  totalFiles      Int    @default(0)
+  totalConversions Int   @default(0)
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  email     String   @default("anonymous")
+  question  String
+  createdAt DateTime @default(now())
+}
