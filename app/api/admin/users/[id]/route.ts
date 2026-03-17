@@ -14,11 +14,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const { id } = await params
     const body = await req.json()
-    const { plan, role, premiumDuration } = body
+    const { plan, role, premiumDuration, email_verified } = body
 
     const updateData: Record<string, unknown> = {}
     if (plan && ["free", "premium", "friend"].includes(plan)) updateData.plan = plan
     if (role && ["user", "admin", "owner"].includes(role)) updateData.role = role
+    if (typeof email_verified === "boolean") {
+      updateData.email_verified = email_verified
+      if (!email_verified) updateData.verify_token = null
+    }
 
     // Set premium_until based on duration selection
     if (plan === "premium" && premiumDuration) {
@@ -56,8 +60,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const session = await getServerSession(authOptions)
     const currentUser = session?.user as { id: string; role: string } | undefined
 
-    if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "owner")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+    if (!currentUser || currentUser.role !== "owner") {
+      return NextResponse.json({ error: "Only owners can delete users" }, { status: 403 })
     }
 
     const { id } = await params

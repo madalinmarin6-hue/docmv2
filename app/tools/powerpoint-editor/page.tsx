@@ -5,6 +5,7 @@ import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 type SlideLayout = "title" | "content" | "two-col" | "blank" | "section" | "image"
 
@@ -63,6 +64,7 @@ const themes = [
 ]
 
 export default function PowerPointEditorPage() {
+  usePing()
   const [slides, setSlides] = useState<Slide[]>([])
   const [activeSlide, setActiveSlide] = useState(0)
   const [loaded, setLoaded] = useState(false)
@@ -172,7 +174,8 @@ export default function PowerPointEditorPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a"); a.href = url; a.download = outName; a.click(); URL.revokeObjectURL(url)
       setStatus("Exported as .pptx!")
-      trackEdit({ fileName: outName, fileSize: blob.size, fileType: "pptx", toolUsed: "powerpoint-editor" })
+      const editResult = await trackEdit({ fileName: outName, fileSize: blob.size, fileType: "pptx", toolUsed: "powerpoint-editor" })
+      if (!editResult.allowed) { setStatus(editResult.error || "Edit limit reached"); return }
       saveToCloud(blob, outName, "powerpoint-editor")
     } catch (e) {
       console.error(e)

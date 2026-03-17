@@ -5,10 +5,12 @@ import ToolLayout from "../../../components/ToolLayout"
 import FileUploader from "../../../components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 type Tool = "eraser" | "restore" | "magic"
 
 export default function RemoveBgPage() {
+  usePing()
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState("")
   const [processing, setProcessing] = useState(false)
@@ -233,21 +235,21 @@ export default function RemoveBgPage() {
 
   function handleMouseUp() { setIsDrawing(false) }
 
-  function download() {
+  async function download() {
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      const outName = (file?.name.replace(/\.[^.]+$/, "") || "image") + "_no_bg.png"
-      a.download = outName
-      a.click()
-      URL.revokeObjectURL(url)
-      trackEdit({ fileName: outName, fileSize: blob.size, fileType: "png", toolUsed: "remove-bg" })
-      saveToCloud(blob, outName, "remove-bg")
-    }, "image/png")
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"))
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    const outName = (file?.name.replace(/\.[^.]+$/, "") || "image") + "_no_bg.png"
+    a.download = outName
+    a.click()
+    URL.revokeObjectURL(url)
+    const editResult = await trackEdit({ fileName: outName, fileSize: blob.size, fileType: "png", toolUsed: "remove-bg" })
+    if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
+    saveToCloud(blob, outName, "remove-bg")
   }
 
   function reset() {

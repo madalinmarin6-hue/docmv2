@@ -46,6 +46,49 @@ const toolMap: Record<string, { label: string; href: string; color: string }> = 
   "convert-html-pdf": { label: "HTML → PDF", href: "/convert/html-to-pdf", color: "from-red-500 to-rose-500" },
 }
 
+const cloudT = {
+  EN: {
+    title: "My Cloud Files",
+    file: "file", files: "files", used: "used",
+    search: "Search files...", upload: "Upload",
+    notice: "Files are stored for 30 days. After that, they are automatically deleted. Download important files to keep them permanently.",
+    noFiles: "No files yet. Upload or use a tool to get started.",
+    today: "Today", yesterday: "Yesterday", daysAgo: "days ago",
+    loginTitle: "Cloud Storage",
+    loginDesc: "Log in to access your cloud files and storage.",
+    loginBtn: "Log In",
+    uploading: "Uploading", of: "of",
+    selectAll: "Select All", deselectAll: "Deselect All",
+    deleteSelected: "Delete Selected", deleting: "Deleting...",
+    download: "Download", rename: "Rename", delete: "Delete", view: "View",
+    confirmDelete: "Confirm?", cancel: "Cancel",
+    expires: "Expires in", days: "days",
+    openIn: "Open in", source: "Source",
+    noPreview: "No preview available for this file type",
+    close: "Close",
+  },
+  RO: {
+    title: "Fisierele Mele Cloud",
+    file: "fisier", files: "fisiere", used: "folosit",
+    search: "Cauta fisiere...", upload: "Incarca",
+    notice: "Fisierele sunt stocate 30 de zile. Dupa aceea, sunt sterse automat. Descarca fisierele importante pentru a le pastra permanent.",
+    noFiles: "Niciun fisier inca. Incarca sau foloseste un instrument pentru a incepe.",
+    today: "Astazi", yesterday: "Ieri", daysAgo: "zile in urma",
+    loginTitle: "Stocare Cloud",
+    loginDesc: "Autentifica-te pentru a accesa fisierele tale din cloud.",
+    loginBtn: "Autentificare",
+    uploading: "Se incarca", of: "din",
+    selectAll: "Selecteaza Tot", deselectAll: "Deselecteaza Tot",
+    deleteSelected: "Sterge Selectia", deleting: "Se sterg...",
+    download: "Descarca", rename: "Redenumeste", delete: "Sterge", view: "Vizualizeaza",
+    confirmDelete: "Confirmi?", cancel: "Anuleaza",
+    expires: "Expira in", days: "zile",
+    openIn: "Deschide in", source: "Sursa",
+    noPreview: "Nu exista previzualizare pentru acest tip de fisier",
+    close: "Inchide",
+  },
+}
+
 const convertOptions = [
   { label: "PDF \u2192 Word", href: "/convert/pdf-to-word" },
   { label: "Word \u2192 PDF", href: "/convert/word-to-pdf" },
@@ -179,6 +222,7 @@ export default function CloudPage() {
   const [viewLoading, setViewLoading] = useState(false)
 
   const cm = classicMode
+  const ct = cloudT[lang as "EN" | "RO"] || cloudT.EN
 
   useEffect(() => {
     if (status === "authenticated") fetchFiles()
@@ -350,11 +394,11 @@ export default function CloudPage() {
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" /></svg>
           </div>
           <div>
-            <h2 className={`text-2xl font-bold mb-2 ${cm ? "text-gray-900" : ""}`}>Cloud Storage</h2>
-            <p className={`text-sm ${cm ? "text-gray-500" : "text-white/50"}`}>Log in to access your cloud files and storage.</p>
+            <h2 className={`text-2xl font-bold mb-2 ${cm ? "text-gray-900" : ""}`}>{ct.loginTitle}</h2>
+            <p className={`text-sm ${cm ? "text-gray-500" : "text-white/50"}`}>{ct.loginDesc}</p>
           </div>
           <Link href="/auth/login" className="w-full py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-purple-500/20 block">
-            Log In
+            {ct.loginBtn}
           </Link>
         </div>
       </div>
@@ -374,10 +418,10 @@ export default function CloudPage() {
         {/* HEADER */}
         <div className="text-center mb-6">
           <h1 className={`text-3xl font-bold ${cm ? "text-gray-900" : "bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"}`}>
-            My Cloud Files
+            {ct.title}
           </h1>
           <p className={`text-sm mt-1 ${cm ? "text-gray-500" : "text-white/40"}`}>
-            {files.length} file{files.length !== 1 ? "s" : ""} &middot; {formatSize(totalUsage)} used
+            {files.length} {files.length !== 1 ? ct.files : ct.file} &middot; {formatSize(totalUsage)} {ct.used}
           </p>
         </div>
 
@@ -386,7 +430,7 @@ export default function CloudPage() {
           <div className="flex flex-wrap gap-3">
             <div className="relative">
               <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${cm ? "text-gray-300" : "text-white/30"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search files..."
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={ct.search}
                 className={`pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition w-48 ${cm ? "bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400" : "bg-white/5 border border-white/10 text-white placeholder:text-white/30"}`} />
             </div>
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleUpload}
@@ -394,7 +438,7 @@ export default function CloudPage() {
             <button onClick={() => fileInputRef.current?.click()} disabled={!!uploadProgress}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50 flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-              Upload
+              {ct.upload}
             </button>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -410,14 +454,14 @@ export default function CloudPage() {
         {/* 30-DAY NOTICE */}
         <div className={`mb-6 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs ${cm ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-amber-500/10 border border-amber-400/20 text-amber-300"}`}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
-          Files are stored for 30 days. After that, they are automatically deleted. Download important files to keep them permanently.
+          {ct.notice}
         </div>
 
         {/* UPLOAD PROGRESS */}
         {uploadProgress && (
           <div className={`mb-6 p-4 rounded-xl ${cm ? "bg-white border border-gray-200" : "bg-white/5 border border-white/10"}`}>
             <div className="flex items-center justify-between mb-2">
-              <span className={`text-sm font-medium ${cm ? "text-gray-900" : ""}`}>Uploading {uploadProgress.current}/{uploadProgress.total}</span>
+              <span className={`text-sm font-medium ${cm ? "text-gray-900" : ""}`}>{ct.uploading} {uploadProgress.current}/{uploadProgress.total}</span>
               <span className={`text-xs ${cm ? "text-gray-400" : "text-white/40"}`}>{uploadProgress.name}</span>
             </div>
             <div className={`w-full h-2 rounded-full overflow-hidden ${cm ? "bg-gray-100" : "bg-white/10"}`}>
@@ -435,12 +479,12 @@ export default function CloudPage() {
           <div className={`mb-4 flex items-center gap-3 px-4 py-3 rounded-xl ${cm ? "bg-blue-50 border border-blue-200" : "bg-blue-500/10 border border-blue-400/20"}`}>
             <span className={`text-sm font-medium ${cm ? "text-blue-700" : "text-blue-300"}`}>{selected.size} selected</span>
             <button onClick={selectAll} className={`text-xs px-3 py-1 rounded-lg transition ${cm ? "bg-white text-gray-600 hover:bg-gray-50" : "bg-white/5 text-white/60 hover:bg-white/10"}`}>
-              {selected.size === filtered.length ? "Deselect All" : "Select All"}
+              {selected.size === filtered.length ? ct.deselectAll : ct.selectAll}
             </button>
             <div className="flex-1" />
             <button onClick={handleBatchDelete} disabled={batchDeleting}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition disabled:opacity-50">
-              {batchDeleting ? "Deleting..." : `Delete ${selected.size} file${selected.size > 1 ? "s" : ""}`}
+              {batchDeleting ? ct.deleting : `${ct.delete} ${selected.size} ${selected.size > 1 ? ct.files : ct.file}`}
             </button>
           </div>
         )}
@@ -465,12 +509,12 @@ export default function CloudPage() {
         ) : filtered.length === 0 ? (
           <div className={`text-center py-20 rounded-2xl ${cm ? "bg-white border border-gray-200" : "bg-white/5 border border-white/10"}`}>
             <svg className={`w-16 h-16 mx-auto mb-4 ${cm ? "text-gray-200" : "text-white/10"}`} fill="none" stroke="currentColor" strokeWidth="1" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" /></svg>
-            <p className={`text-lg font-semibold mb-2 ${cm ? "text-gray-900" : ""}`}>{search ? "No files match your search" : "No files yet"}</p>
-            <p className={`text-sm mb-6 ${cm ? "text-gray-400" : "text-white/40"}`}>{search ? "Try a different search term" : "Upload files or save them from any editing tool"}</p>
+            <p className={`text-lg font-semibold mb-2 ${cm ? "text-gray-900" : ""}`}>{search ? (lang === "RO" ? "Niciun fisier gasit" : "No files match your search") : (lang === "RO" ? "Niciun fisier inca" : "No files yet")}</p>
+            <p className={`text-sm mb-6 ${cm ? "text-gray-400" : "text-white/40"}`}>{search ? (lang === "RO" ? "Incearca alt termen" : "Try a different search term") : ct.noFiles}</p>
             {!search && (
               <button onClick={() => fileInputRef.current?.click()}
                 className="px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105 active:scale-95 transition-all">
-                Upload Your First File
+                {ct.upload}
               </button>
             )}
           </div>

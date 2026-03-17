@@ -3,10 +3,12 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
+import { usePing } from "@/lib/usePing"
 
 type PageInfo = { pageNum: number; imageUrl: string; width: number; height: number }
 
 export default function PDFViewerPage() {
+  usePing()
   const [pages, setPages] = useState<PageInfo[]>([])
   const [activePage, setActivePage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)

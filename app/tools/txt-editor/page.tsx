@@ -6,10 +6,12 @@ import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 const MonacoEditorWrapper = dynamic(() => import("@/modules/txt-editor/MonacoEditorWrapper"), { ssr: false, loading: () => <div className="flex items-center justify-center h-[60vh] text-white/30">Loading editor...</div> })
 
 export default function TxtEditorPage() {
+  usePing()
   const [content, setContent] = useState("")
   const [fileName, setFileName] = useState("")
   const [loaded, setLoaded] = useState(false)
@@ -32,7 +34,7 @@ export default function TxtEditorPage() {
     window.dispatchEvent(new Event("docm-collapse-sidebar"))
   }
 
-  const handleExport = useCallback((text: string) => {
+  const handleExport = useCallback(async (text: string) => {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -41,7 +43,8 @@ export default function TxtEditorPage() {
     a.click()
     URL.revokeObjectURL(url)
     setStatus("Exported!")
-    trackEdit({ fileName: fileName || "document.txt", fileSize: blob.size, fileType: "txt", toolUsed: "txt-editor" })
+    const editResult = await trackEdit({ fileName: fileName || "document.txt", fileSize: blob.size, fileType: "txt", toolUsed: "txt-editor" })
+    if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
     saveToCloud(blob, fileName || "document.txt", "txt-editor")
   }, [fileName])
 

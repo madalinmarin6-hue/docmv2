@@ -6,10 +6,12 @@ import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 const TipTapEditor = dynamic(() => import("@/modules/word-editor/TipTapEditor"), { ssr: false, loading: () => <div className="flex items-center justify-center h-[60vh] text-white/30">Loading editor...</div> })
 
 export default function WordEditorPage() {
+  usePing()
   const [content, setContent] = useState("")
   const [fileName, setFileName] = useState("")
   const [loaded, setLoaded] = useState(false)
@@ -39,7 +41,7 @@ export default function WordEditorPage() {
     }
   }, [])
 
-  const doExport = useCallback((html: string, ext: string, mime: string) => {
+  const doExport = useCallback(async (html: string, ext: string, mime: string) => {
     let blob: Blob
     if (ext === ".doc") {
       const full = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;margin:2cm;line-height:1.6;}img{max-width:100%;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:6px 10px;}</style></head><body>${html}</body></html>`
@@ -54,7 +56,8 @@ export default function WordEditorPage() {
     a.download = (fileName.replace(/\.[^.]+$/, "") || "document") + ext
     a.click(); URL.revokeObjectURL(url)
     setStatus(`Exported as ${ext}!`)
-    trackEdit({ fileName: (fileName.replace(/\.[^.]+$/, "") || "document") + ext, fileSize: blob.size, fileType: ext.replace(".", ""), toolUsed: "word-editor" })
+    const editResult = await trackEdit({ fileName: (fileName.replace(/\.[^.]+$/, "") || "document") + ext, fileSize: blob.size, fileType: ext.replace(".", ""), toolUsed: "word-editor" })
+    if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
     saveToCloud(blob, (fileName.replace(/\.[^.]+$/, "") || "document") + ext, "word-editor")
   }, [fileName])
 

@@ -1,13 +1,14 @@
 "use client"
 
 import { useEditor, EditorContent } from "@tiptap/react"
+import { Extension } from "@tiptap/core"
 import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
 import Highlight from "@tiptap/extension-highlight"
 import Link from "@tiptap/extension-link"
 import Image from "@tiptap/extension-image"
-import { TextStyle, FontSize } from "@tiptap/extension-text-style"
+import { TextStyle } from "@tiptap/extension-text-style"
 import Color from "@tiptap/extension-color"
 import FontFamily from "@tiptap/extension-font-family"
 import { Table } from "@tiptap/extension-table"
@@ -19,6 +20,30 @@ import Subscript from "@tiptap/extension-subscript"
 import Superscript from "@tiptap/extension-superscript"
 import { useState, useCallback, useEffect, useRef } from "react"
 import OfficeRibbon, { type RibbonTab } from "./OfficeRibbon"
+
+/* Custom FontSize extension — @tiptap/extension-text-style v3 doesn't export FontSize */
+const FontSize = Extension.create({
+  name: "fontSize",
+  addOptions() { return { types: ["textStyle"] } },
+  addGlobalAttributes() {
+    return [{
+      types: this.options.types,
+      attributes: {
+        fontSize: {
+          default: null,
+          parseHTML: (el: HTMLElement) => el.style.fontSize || null,
+          renderHTML: (attrs: Record<string, any>) => attrs.fontSize ? { style: `font-size: ${attrs.fontSize}` } : {},
+        },
+      },
+    }]
+  },
+  addCommands() {
+    return {
+      setFontSize: (size: string) => ({ chain }: { chain: any }) => chain().setMark("textStyle", { fontSize: size }).run(),
+      unsetFontSize: () => ({ chain }: { chain: any }) => chain().setMark("textStyle", { fontSize: null }).run(),
+    } as any
+  },
+})
 
 interface Props {
   initialContent?: string
@@ -272,42 +297,91 @@ export default function TipTapEditor({
             </div>
           </div>
 
-          {/* EDITOR AREA (gray background, centered white page) */}
+          {/* EDITOR AREA (gray background, centered white pages) */}
           <div ref={editorAreaRef} className="flex-1 overflow-auto bg-[#d4d4d4]">
             <div className="flex justify-center py-[20px]" style={{ minHeight: "100%" }}>
-              {/* Page wrapper - uses transform for zoom but with explicit layout sizing */}
-              <div style={{ width: `${scaledW}px`, minHeight: `${PAGE_H * scale}px` }}>
+              <div style={{ width: `${scaledW}px` }}>
                 <div
-                  className="bg-white relative origin-top-left"
+                  className="origin-top-left relative"
                   style={{
                     width: `${PAGE_W}px`,
-                    minHeight: `${PAGE_H}px`,
                     transform: `scale(${scale})`,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)",
                   }}
                 >
+                  {/* Visual page separators via CSS on the content area */}
+                  <style>{`
+                    .word-editor-pages {
+                      background: white;
+                      position: relative;
+                    }
+                    .word-editor-pages .ProseMirror {
+                      outline: none;
+                      min-height: ${PAGE_H - MARGIN_TOP - MARGIN_BOTTOM}px;
+                    }
+                    /* Draw page break lines and gaps every PAGE_H pixels */
+                    .word-editor-page-container {
+                      position: relative;
+                      background:
+                        repeating-linear-gradient(
+                          to bottom,
+                          white 0px,
+                          white ${PAGE_H - 1}px,
+                          #d4d4d4 ${PAGE_H - 1}px,
+                          #d4d4d4 ${PAGE_H + 8}px
+                        );
+                      padding-bottom: 8px;
+                    }
+                    /* Page shadow overlay every PAGE_H px */
+                    .word-editor-page-container::before {
+                      content: '';
+                      position: absolute;
+                      top: 0; left: 0; right: 0; bottom: 0;
+                      pointer-events: none;
+                      background:
+                        repeating-linear-gradient(
+                          to bottom,
+                          transparent 0px,
+                          transparent ${PAGE_H - 2}px,
+                          rgba(0,0,0,0.08) ${PAGE_H - 2}px,
+                          rgba(0,0,0,0.08) ${PAGE_H - 1}px,
+                          transparent ${PAGE_H - 1}px,
+                          transparent ${PAGE_H + 8}px
+                        );
+                      z-index: 2;
+                    }
+                  `}</style>
                   <div
+                    className="word-editor-page-container"
                     style={{
-                      paddingTop: `${MARGIN_TOP}px`,
-                      paddingBottom: `${MARGIN_BOTTOM}px`,
-                      paddingLeft: `${marginLeft}px`,
-                      paddingRight: `${marginRight}px`,
-                      minHeight: `${PAGE_H}px`,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)",
                     }}
                   >
-                    <EditorContent
-                      editor={editor}
-                      className="prose prose-sm max-w-none text-black
-                        [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:p-2
-                        [&_th]:border [&_th]:border-gray-300 [&_th]:p-2 [&_th]:bg-gray-50
-                        [&_img]:max-w-full [&_img]:rounded
-                        [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[800px]"
-                    />
+                    <div
+                      className="word-editor-pages"
+                      style={{
+                        paddingTop: `${MARGIN_TOP}px`,
+                        paddingBottom: `${MARGIN_BOTTOM}px`,
+                        paddingLeft: `${marginLeft}px`,
+                        paddingRight: `${marginRight}px`,
+                        minHeight: `${PAGE_H}px`,
+                      }}
+                    >
+                      <EditorContent
+                        editor={editor}
+                        className="prose prose-sm max-w-none text-black
+                          [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:p-2
+                          [&_th]:border [&_th]:border-gray-300 [&_th]:p-2 [&_th]:bg-gray-50
+                          [&_img]:max-w-full [&_img]:rounded
+                          [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[800px]"
+                      />
+                    </div>
                   </div>
-                  {/* Page number label */}
-                  <div className="absolute bottom-[8px] left-1/2 -translate-x-1/2 text-[9px] text-[#999] select-none">
-                    Page 1
-                  </div>
+                  {/* Page number overlays */}
+                  {Array.from({ length: pageCount }, (_, i) => (
+                    <div key={i} className="absolute left-1/2 -translate-x-1/2 text-[9px] text-[#999] select-none pointer-events-none" style={{ top: `${(i + 1) * PAGE_H - 18 + i * 9}px`, zIndex: 3 }}>
+                      Page {i + 1} of {pageCount}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

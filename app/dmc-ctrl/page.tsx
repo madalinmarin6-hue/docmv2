@@ -15,7 +15,10 @@ type Stats = {
   weekVisits: number
   onlineUsers: number
   onlineVisitors: number
-  recentUsers: { id: string; name: string; email: string; plan: string; createdAt: string }[]
+  onlineOwners: number
+  onlineAdmins: number
+  onlineRegular: number
+  recentUsers: { id: string; name: string; email: string; plan: string; created_at: string }[]
 }
 
 type UserRow = {
@@ -88,10 +91,17 @@ type CloudFileRow = {
   updated_at: string
 }
 
+type QuestionRow = {
+  id: string
+  email: string
+  question: string
+  created_at: string
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [tab, setTab] = useState<"overview" | "users" | "activity" | "reviews" | "bugs" | "cloud">("overview")
+  const [tab, setTab] = useState<"overview" | "users" | "activity" | "reviews" | "bugs" | "cloud" | "questions">("overview")
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [files, setFiles] = useState<FileRow[]>([])
@@ -107,9 +117,16 @@ export default function AdminPage() {
   const [cloudLoading, setCloudLoading] = useState(false)
   const [cloudViewUrl, setCloudViewUrl] = useState<string | null>(null)
   const [cloudViewing, setCloudViewing] = useState<CloudFileRow | null>(null)
+  const [cloudTotalSize, setCloudTotalSize] = useState(0)
 
   // Activity sub-tab
   const [activityView, setActivityView] = useState<"files" | "logs">("files")
+
+  // Bugs expanded
+  const [expandedBug, setExpandedBug] = useState<string | null>(null)
+
+  // Questions
+  const [questions, setQuestions] = useState<QuestionRow[]>([])
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/auth/login")
@@ -140,7 +157,13 @@ export default function AdminPage() {
     } else if (tab === "bugs") {
       fetch("/api/admin/bug-reports").then(r => r.json()).then(setBugs).finally(() => setLoading(false))
     } else if (tab === "cloud") {
-      fetch("/api/admin/cloud-files").then(r => r.json()).then(d => setCloudUsers(d.users || [])).finally(() => setLoading(false))
+      fetch("/api/admin/cloud-files").then(r => r.json()).then(d => {
+        const u = d.users || []
+        setCloudUsers(u)
+        setCloudTotalSize(u.reduce((sum: number, cu: CloudUser) => sum + (cu.cloudSize || 0), 0))
+      }).finally(() => setLoading(false))
+    } else if (tab === "questions") {
+      fetch("/api/questions").then(r => r.json()).then(setQuestions).finally(() => setLoading(false))
     }
   }, [tab, status])
 
@@ -154,9 +177,25 @@ export default function AdminPage() {
     return () => clearInterval(iv)
   }, [tab, status])
 
-  async function updateUser(id: string, data: { plan?: string; role?: string; premiumDuration?: string }) {
+  async function updateUser(id: string, data: { plan?: string; role?: string; premiumDuration?: string; email_verified?: boolean }) {
     const res = await fetch(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
-    if (res.ok) setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u))
+    if (res.ok) {
+      if (typeof data.email_verified === "boolean") {
+        setUsers(prev => prev.map(u => u.id === id ? { ...u, emailVerified: data.email_verified! } : u))
+      } else {
+        setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u))
+      }
+    }
+  }
+
+  async function resendVerifyEmail(userId: string) {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email_verified: false }) })
+      if (res.ok) {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, emailVerified: false } : u))
+        alert("User set to unverified. They will need to re-verify.")
+      }
+    } catch { alert("Failed") }
   }
 
   async function deleteUser(id: string) {
@@ -207,6 +246,11 @@ export default function AdminPage() {
 
   function closeCloudView() { if (cloudViewUrl) URL.revokeObjectURL(cloudViewUrl); setCloudViewing(null); setCloudViewUrl(null) }
 
+  async function deleteQuestion(id: string) {
+    if (!confirm("Delete this question?")) return
+    try { await fetch("/api/questions", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }); setQuestions(prev => prev.filter(q => q.id !== id)) } catch {}
+  }
+
   const userRole = (session?.user as { role?: string } | undefined)?.role
   const isOwner = userRole === "owner"
 
@@ -214,7 +258,8 @@ export default function AdminPage() {
     return (<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#020617] via-[#0b1333] to-[#020617]"><div className="w-10 h-10 border-4 border-white/20 border-t-blue-400 rounded-full animate-spin" /></div>)
   }
 
-  const tabs = ["overview", "users", "activity", "reviews", "bugs", "cloud"] as const
+  const cloudSizeLabel = cloudTotalSize > 0 ? ` (${cloudTotalSize < 1024*1024 ? (cloudTotalSize/1024).toFixed(1)+" KB" : (cloudTotalSize/(1024*1024)).toFixed(1)+" MB"})` : ""
+  const tabs = ["overview", "users", "activity", "reviews", "bugs", "cloud", "questions"] as const
   const tabIcons: Record<string, string> = {
     overview: "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z",
     users: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
@@ -222,6 +267,7 @@ export default function AdminPage() {
     reviews: "M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z",
     bugs: "M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152-6.135 3 3 0 10-2.055 0c-.16 2.14-.613 4.248-1.34 6.24M12 12.75a2.25 2.25 0 002.248-2.354M12 12.75a2.25 2.25 0 01-2.248-2.354M12 8.25c.995 0 1.971-.08 2.922-.236.403-.066.74-.358.795-.762a3.778 3.778 0 00-.399-2.25M12 8.25c-.995 0-1.97-.08-2.922-.236-.402-.066-.74-.358-.795-.762a3.734 3.734 0 01.4-2.253M12 8.25a2.25 2.25 0 00-2.248 2.146M12 8.25a2.25 2.25 0 012.248 2.146M8.683 5a6.032 6.032 0 01-1.155-1.002c.07-.63.27-1.222.574-1.747m.581 2.749A3.75 3.75 0 0112 3.75c1.274 0 2.404.634 3.087 1.603m-.17-.354c.304.525.504 1.117.574 1.747A6.034 6.034 0 0115.317 5",
     cloud: "M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z",
+    questions: "M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z",
   }
   const onlineTotal = (stats?.onlineUsers ?? 0) + (stats?.onlineVisitors ?? 0)
 
@@ -245,7 +291,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-400/20">
                 <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
                 <span className="text-[11px] font-medium text-green-400">{onlineTotal} online</span>
-                <span className="text-[10px] text-green-400/60 hidden sm:inline">({stats.onlineUsers} users, {stats.onlineVisitors} guests)</span>
+                <span className="text-[10px] text-green-400/60 hidden sm:inline">({stats.onlineOwners ? `${stats.onlineOwners} owner, ` : ""}{stats.onlineAdmins ? `${stats.onlineAdmins} admin, ` : ""}{stats.onlineRegular ?? 0} users, {stats.onlineVisitors} guests)</span>
               </div>
             )}
             <Link href="/dashboard" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition">&larr; Profile</Link>
@@ -261,7 +307,7 @@ export default function AdminPage() {
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 capitalize
                 ${tab === t ? "bg-white/10 text-white border border-white/20 shadow-lg shadow-white/5" : "text-white/40 hover:text-white/60 hover:bg-white/5 border border-transparent"}`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={tabIcons[t]} /></svg>
-              {t}
+              {t}{t === "cloud" && cloudSizeLabel && <span className="text-purple-400/70 ml-1">{cloudSizeLabel}</span>}
             </button>
           ))}
         </div>
@@ -311,7 +357,7 @@ export default function AdminPage() {
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${u.plan === "premium" ? "bg-amber-500/20 text-amber-400" : "bg-white/5 text-white/30"}`}>{u.plan}</span>
-                            <span className="text-[10px] text-white/20">{new Date(u.createdAt).toLocaleDateString()}</span>
+                            <span className="text-[10px] text-white/20">{new Date(u.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
                       ))}
@@ -398,14 +444,21 @@ export default function AdminPage() {
                             </select>
                           </td>
                           <td className="py-2.5 pr-3">
-                            <span className={`text-[11px] px-2 py-0.5 rounded-full ${u.emailVerified ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
-                              {u.emailVerified ? "Yes" : "No"}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={() => updateUser(u.id, { email_verified: !u.emailVerified })}
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-medium transition ${u.emailVerified ? "bg-emerald-500/15 text-emerald-400 hover:bg-red-500/15 hover:text-red-400" : "bg-red-500/15 text-red-400 hover:bg-emerald-500/15 hover:text-emerald-400"}`}>
+                                {u.emailVerified ? "Verified" : "Unverified"}
+                              </button>
+                              {u.emailVerified && (
+                                <button onClick={() => resendVerifyEmail(u.id)} title="Reset to unverified"
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition">Re-verify</button>
+                              )}
+                            </div>
                           </td>
                           <td className="py-2.5 pr-3 text-white/50">{u._count.files}</td>
                           <td className="py-2.5 pr-3 text-white/30">{new Date(u.createdAt).toLocaleDateString()}</td>
                           <td className="py-2.5">
-                            <button onClick={() => deleteUser(u.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition">Delete</button>
+                            {isOwner && <button onClick={() => deleteUser(u.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition">Delete</button>}
                           </td>
                         </tr>
                       ))}
@@ -530,26 +583,38 @@ export default function AdminPage() {
               <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
                 <h3 className="text-sm font-semibold text-white mb-4">Bug Reports ({bugs.length})</h3>
                 <div className="space-y-2">
-                  {bugs.map(b => (
-                    <div key={b.id} className="p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition border border-white/5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <p className="text-xs font-semibold text-white/90">{b.title}</p>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${b.status === "open" ? "bg-red-500/20 text-red-400" : b.status === "in_progress" ? "bg-amber-500/20 text-amber-400" : b.status === "resolved" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/40"}`}>{b.status}</span>
+                  {bugs.map(b => {
+                    const isExpanded = expandedBug === b.id
+                    const preview = b.description.length > 100 ? b.description.slice(0, 100) + "..." : b.description
+                    return (
+                    <div key={b.id} className="rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition border border-white/5 overflow-hidden">
+                      <div className="p-4 cursor-pointer" onClick={() => setExpandedBug(isExpanded ? null : b.id)}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <p className="text-xs font-semibold text-white/90">{b.title}</p>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${b.status === "open" ? "bg-red-500/20 text-red-400" : b.status === "in_progress" ? "bg-amber-500/20 text-amber-400" : b.status === "resolved" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/40"}`}>{b.status}</span>
+                              <svg className={`w-3 h-3 text-white/30 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                            </div>
+                            <p className="text-xs text-white/50 mb-1">{isExpanded ? b.description : preview}</p>
+                            <p className="text-[10px] text-white/25">{b.user_name} ({b.user_email}) &middot; {new Date(b.created_at).toLocaleDateString()}</p>
                           </div>
-                          <p className="text-xs text-white/50 mb-1">{b.description}</p>
-                          <p className="text-[10px] text-white/25">{b.user_name} ({b.user_email}) &middot; {new Date(b.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <select value={b.status} onChange={(e) => updateBugStatus(b.id, e.target.value)} className="bg-[#0b1333] border border-white/10 rounded-lg px-1.5 py-1 text-[11px] text-white focus:outline-none">
-                            <option value="open">Open</option><option value="in_progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
-                          </select>
-                          <button onClick={() => deleteBug(b.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition">Delete</button>
+                          <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                            <select value={b.status} onChange={(e) => updateBugStatus(b.id, e.target.value)} className="bg-[#0b1333] border border-white/10 rounded-lg px-1.5 py-1 text-[11px] text-white focus:outline-none">
+                              <option value="open">Open</option><option value="in_progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
+                            </select>
+                            <button onClick={() => deleteBug(b.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition">Delete</button>
+                          </div>
                         </div>
                       </div>
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-0 border-t border-white/5">
+                          <p className="text-xs text-white/60 whitespace-pre-wrap leading-relaxed">{b.description}</p>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    )
+                  })}
                   {bugs.length === 0 && <p className="text-white/30 text-xs py-8 text-center">No bug reports yet</p>}
                 </div>
               </div>
@@ -652,6 +717,27 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ═══ QUESTIONS ═══ */}
+            {tab === "questions" && (
+              <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                <h3 className="text-sm font-semibold text-white mb-4">User Questions ({questions.length})</h3>
+                <div className="space-y-2">
+                  {questions.map(q => (
+                    <div key={q.id} className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-white/80 whitespace-pre-wrap mb-1">{q.question}</p>
+                          <p className="text-[10px] text-white/25">{q.email} &middot; {new Date(q.created_at).toLocaleString()}</p>
+                        </div>
+                        <button onClick={() => deleteQuestion(q.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition flex-shrink-0">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                  {questions.length === 0 && <p className="text-white/30 text-xs py-8 text-center">No questions yet</p>}
+                </div>
               </div>
             )}
           </>

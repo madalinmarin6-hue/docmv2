@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
 import { useApp } from "@/components/AppContext"
 import Navbar from "@/components/Navbar"
 import Footer from "@/components/Footer"
@@ -61,20 +62,21 @@ const t = {
 
 export default function HelpPage() {
   const { lang, setLang, classicMode, setClassicMode } = useApp()
+  const { data: session } = useSession()
   const c = t[lang as "EN" | "RO"] || t.EN
   const [question, setQuestion] = useState("")
-  const [email, setEmail] = useState("")
-  const [askStatus, setAskStatus] = useState<"idle" | "sending" | "sent">("idle")
+  const [askStatus, setAskStatus] = useState<"idle" | "sending" | "sent" | "needLogin">("idle")
   const [contactForm, setContactForm] = useState({ name: "", email: "", subject: "", message: "" })
   const [contactSent, setContactSent] = useState(false)
 
   const handleAsk = async () => {
+    if (!session) { setAskStatus("needLogin"); setTimeout(() => setAskStatus("idle"), 4000); return }
     if (!question.trim() || question.trim().length < 3) return
     setAskStatus("sending")
     try {
-      await fetch("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email || "anonymous", question: question.trim() }) })
+      await fetch("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: question.trim() }) })
       setAskStatus("sent")
-      setQuestion(""); setEmail("")
+      setQuestion("")
       setTimeout(() => setAskStatus("idle"), 4000)
     } catch { setAskStatus("idle") }
   }
@@ -108,16 +110,16 @@ export default function HelpPage() {
                 placeholder={c.placeholder} />
             </div>
             <div className="flex gap-2">
-              <input value={email} onChange={e => setEmail(e.target.value)}
-                className={`flex-1 px-4 py-2.5 rounded-xl text-xs outline-none transition ${cm ? "bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400" : "bg-white/5 border border-white/10 text-white placeholder:text-white/30"}`}
-                placeholder={c.emailPh} />
               <button onClick={handleAsk} disabled={askStatus === "sending" || question.trim().length < 3}
-                className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
+                className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:scale-105 active:scale-95 transition-all disabled:opacity-50 ml-auto">
                 {askStatus === "sending" ? c.sending : c.send}
               </button>
             </div>
             {askStatus === "sent" && (
               <div className={`p-3 rounded-xl text-xs font-medium text-center ${cm ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-emerald-500/10 border border-emerald-400/20 text-emerald-400"}`}>{c.sent}</div>
+            )}
+            {askStatus === "needLogin" && (
+              <div className={`p-3 rounded-xl text-xs font-medium text-center ${cm ? "bg-amber-50 text-amber-600 border border-amber-200" : "bg-amber-500/10 border border-amber-400/20 text-amber-400"}`}>{lang === "RO" ? "Trebuie sa fii autentificat pentru a pune o intrebare." : "You must be logged in to ask a question."}</div>
             )}
           </div>
         </div>

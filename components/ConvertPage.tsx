@@ -7,6 +7,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 import * as XLSX from "xlsx"
 import PptxGenJS from "pptxgenjs"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 type Props = {
   title: string
@@ -19,6 +20,7 @@ type Props = {
 }
 
 export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acceptTypes, fromColor, toColor }: Props) {
+  usePing()
 
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<"idle" | "uploading" | "processing" | "done" | "error">("idle")
@@ -39,6 +41,20 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
 
   const handleConvert = useCallback(async () => {
     if (!file) return
+
+    // Check edit limit BEFORE converting
+    try {
+      const checkRes = await fetch("/api/user/track-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: `${fromFormat}-to-${toFormat}`, toolUsed: `convert-${fromFormat.toLowerCase()}-${toFormat.toLowerCase()}` }),
+      })
+      if (checkRes.status === 429) {
+        alert("Daily edit limit reached (0/10). Go to Dashboard to watch ads for bonus edits, or upgrade to Premium.")
+        return
+      }
+    } catch { /* allow on network error */ }
+
     setStatus("processing")
     const interval = simulateProgress()
 
@@ -49,10 +65,53 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
 
       const baseName = file.name.replace(/\.[^.]+$/, "")
 
-      if (toFormat === "PDF") {
+      if (fromFormat === "PDF" && toFormat === "Word") {
+        // ── PDF → Word: use pdfjs-dist for proper text extraction ──
+        const pdfjsLib = await import("pdfjs-dist")
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+        const pdfData = new Uint8Array(buffer)
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
+        const pageHtmlParts: string[] = []
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p)
+          const tc = await page.getTextContent()
+          let prevY: number | null = null
+          let lineText = ""
+          const lines: string[] = []
+          for (const item of tc.items) {
+            if (!("str" in item)) continue
+            const it = item as { str: string; transform: number[] }
+            const y = Math.round(it.transform[5])
+            if (prevY !== null && Math.abs(y - prevY) > 3) {
+              lines.push(lineText)
+              lineText = ""
+            }
+            lineText += (lineText && prevY !== null && Math.abs(y - (prevY ?? 0)) <= 3 ? " " : "") + it.str
+            prevY = y
+          }
+          if (lineText) lines.push(lineText)
+          if (pdf.numPages > 1) pageHtmlParts.push(`<h2 style="color:#2b579a;border-bottom:1px solid #ccc;padding-bottom:4px;">Page ${p}</h2>`)
+          pageHtmlParts.push(lines.map(l => `<p>${l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`).join("\n"))
+          if (p < pdf.numPages) pageHtmlParts.push(`<br style="page-break-after:always;" />`)
+        }
+        const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Calibri,sans-serif;margin:2cm;line-height:1.6;}h1{color:#1a1a2e;}h2{color:#2b579a;margin-top:1.5em;}p{margin:0.3em 0;}</style></head><body><h1>${baseName}</h1><p style="color:#888;font-size:10pt;">Converted from PDF (${pdf.numPages} page${pdf.numPages > 1 ? "s" : ""})</p><hr/>${pageHtmlParts.join("\n")}</body></html>`
+        blob = new Blob(["\ufeff" + html], { type: "application/msword" })
+        outputName = baseName + ".doc"
+
+      } else if (toFormat === "PDF") {
         const pdfDoc = await PDFDocument.create()
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+        // Try to load a Unicode-capable font, fall back to Helvetica
+        let font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+        let boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+        let useUnicode = false
+        try {
+          const fontBytes = await fetch("https://cdn.jsdelivr.net/gh/notofonts/notofonts.github.io/fonts/NotoSans/unhinted/ttf/NotoSans-Regular.ttf").then(r => r.arrayBuffer())
+          font = await pdfDoc.embedFont(fontBytes)
+          const boldBytes = await fetch("https://cdn.jsdelivr.net/gh/notofonts/notofonts.github.io/fonts/NotoSans/unhinted/ttf/NotoSans-Bold.ttf").then(r => r.arrayBuffer())
+          boldFont = await pdfDoc.embedFont(boldBytes)
+          useUnicode = true
+        } catch { /* fall back to standard fonts */ }
 
         if (fromFormat === "JPG" || fromFormat === "PNG") {
           const imgBytes = new Uint8Array(buffer)
@@ -68,7 +127,19 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
             height,
           })
         } else {
-          const text = await file.text()
+          let text: string
+          const ext = file.name.toLowerCase()
+          if (ext.endsWith(".docx") || ext.endsWith(".doc")) {
+            try {
+              const mammoth = (await import("mammoth")).default
+              const result = await mammoth.extractRawText({ arrayBuffer: buffer })
+              text = result.value || ""
+            } catch {
+              text = await file.text()
+            }
+          } else {
+            text = await file.text()
+          }
           const lines = text.split("\n")
           const linesPerPage = 45
           for (let i = 0; i < lines.length; i += linesPerPage) {
@@ -82,8 +153,14 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
             }
             const chunk = lines.slice(i, i + linesPerPage)
             for (const line of chunk) {
-              const safeLine = line.replace(/[^\x20-\x7E]/g, " ").substring(0, 90)
-              page.drawText(safeLine, { x: 50, y, size: 11, font, color: rgb(0, 0, 0) })
+              const safeLine = useUnicode
+                ? line.substring(0, 90)
+                : line.replace(/[^\x20-\x7E\u00C0-\u024F]/g, " ").substring(0, 90)
+              try {
+                page.drawText(safeLine, { x: 50, y, size: 11, font, color: rgb(0, 0, 0) })
+              } catch {
+                page.drawText(safeLine.replace(/[^\x20-\x7E]/g, " "), { x: 50, y, size: 11, font, color: rgb(0, 0, 0) })
+              }
               y -= 16
             }
           }
@@ -113,39 +190,35 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
         blob = await res.blob()
         outputName = baseName + (toFormat === "JPG" ? ".jpg" : ".png")
 
-      } else {
-        // Read source content
-        let textContent: string
-        try {
-          textContent = await file.text()
-        } catch {
-          textContent = `[Binary content from ${file.name}]`
-        }
-
-        // For PDF sources, try to extract readable text from binary
-        if (fromFormat === "PDF") {
-          const raw = textContent
-          const extracted: string[] = []
-          // Extract text from PDF parenthesized strings
-          const regex = /\(([^)]{1,500})\)/g
-          let m
-          while ((m = regex.exec(raw)) !== null) {
-            const s = m[1].replace(/\\n/g, "\n").replace(/\\\\/g, "\\").replace(/\\r/g, "")
-            if (s.length > 1 && /[a-zA-Z0-9]/.test(s)) extracted.push(s)
+      } else if (fromFormat === "PDF") {
+        // ── PDF → other formats: use pdfjs-dist for text extraction ──
+        const pdfjsLib = await import("pdfjs-dist")
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+        const pdfData = new Uint8Array(buffer)
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
+        const allLines: string[] = []
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p)
+          const tc = await page.getTextContent()
+          let prevY: number | null = null
+          let lineText = ""
+          for (const item of tc.items) {
+            if (!("str" in item)) continue
+            const it = item as { str: string; transform: number[] }
+            const y = Math.round(it.transform[5])
+            if (prevY !== null && Math.abs(y - prevY) > 3) {
+              allLines.push(lineText)
+              lineText = ""
+            }
+            lineText += (lineText && prevY !== null && Math.abs(y - (prevY ?? 0)) <= 3 ? " " : "") + it.str
+            prevY = y
           }
-          if (extracted.length > 0) {
-            textContent = extracted.join("\n")
-          } else {
-            textContent = `[PDF content from ${file.name} - text extraction limited in browser]`
-          }
+          if (lineText) allLines.push(lineText)
+          if (p < pdf.numPages) allLines.push("")
         }
+        const textContent = allLines.join("\n")
 
-        if (toFormat === "Word") {
-          // Create HTML that Word can open natively (save as .doc)
-          const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Calibri,sans-serif;margin:2cm;line-height:1.6;}h1{color:#1a1a2e;}p.meta{color:#888;font-size:10pt;}</style></head><body><h1>${baseName}</h1><p class="meta">Converted from ${fromFormat}</p>${textContent.split("\n").map(l => `<p>${l.replace(/</g, "&lt;")}</p>`).join("")}</body></html>`
-          blob = new Blob(["\ufeff" + html], { type: "application/msword" })
-          outputName = baseName + ".doc"
-        } else if (toFormat === "Excel") {
+        if (toFormat === "Excel") {
           // Create real XLSX using xlsx library
           const lines = textContent.split("\n").map(line => line.split(/[,\t]/).map(cell => cell.trim()))
           const ws = XLSX.utils.aoa_to_sheet(lines)
@@ -185,6 +258,59 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
           blob = new Blob([textContent], { type: "text/plain" })
           outputName = baseName + "." + toFormat.toLowerCase()
         }
+
+      } else {
+        // ── Non-PDF source → non-PDF target (e.g. TXT→Word, Excel→HTML) ──
+        let textContent: string
+        const ext = file.name.toLowerCase()
+        if (ext.endsWith(".docx") || ext.endsWith(".doc")) {
+          try {
+            const mammoth = (await import("mammoth")).default
+            const result = await mammoth.extractRawText({ arrayBuffer: buffer })
+            textContent = result.value || ""
+          } catch {
+            textContent = await file.text()
+          }
+        } else {
+          try { textContent = await file.text() } catch { textContent = `[Binary content from ${file.name}]` }
+        }
+
+        if (toFormat === "Word") {
+          const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Calibri,sans-serif;margin:2cm;line-height:1.6;}h1{color:#1a1a2e;}p.meta{color:#888;font-size:10pt;}</style></head><body><h1>${baseName}</h1><p class="meta">Converted from ${fromFormat}</p>${textContent.split("\n").map(l => `<p>${l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`).join("")}</body></html>`
+          blob = new Blob(["\ufeff" + html], { type: "application/msword" })
+          outputName = baseName + ".doc"
+        } else if (toFormat === "Excel") {
+          const lines = textContent.split("\n").map(line => line.split(/[,\t]/).map(cell => cell.trim()))
+          const ws = XLSX.utils.aoa_to_sheet(lines)
+          const wb = XLSX.utils.book_new()
+          XLSX.utils.book_append_sheet(wb, ws, "Sheet1")
+          const xlsxBuf = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+          blob = new Blob([xlsxBuf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+          outputName = baseName + ".xlsx"
+        } else if (toFormat === "PPTX") {
+          const pptx = new PptxGenJS()
+          const contentLines = textContent.split("\n")
+          const linesPerSlide = 12
+          for (let i = 0; i < contentLines.length; i += linesPerSlide) {
+            const slide = pptx.addSlide()
+            if (i === 0) slide.addText(baseName, { x: 0.5, y: 0.3, w: 9, h: 1, fontSize: 28, bold: true, color: "1a1a2e" })
+            const chunk = contentLines.slice(i, i + linesPerSlide).join("\n")
+            slide.addText(chunk, { x: 0.5, y: i === 0 ? 1.5 : 0.5, w: 9, h: 5, fontSize: 14, color: "333333", valign: "top" })
+          }
+          const pptxBuf = await pptx.write({ outputType: "arraybuffer" }) as ArrayBuffer
+          blob = new Blob([pptxBuf], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" })
+          outputName = baseName + ".pptx"
+        } else if (toFormat === "HTML") {
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${baseName}</title><style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.6;color:#333;}h1{color:#1a1a2e;border-bottom:2px solid #eee;padding-bottom:10px;}</style></head><body><h1>${baseName}</h1>${textContent.split("\n").map(l => `<p>${l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`).join("")}</body></html>`
+          blob = new Blob([html], { type: "text/html" })
+          outputName = baseName + ".html"
+        } else if (toFormat === "TXT") {
+          blob = new Blob([textContent], { type: "text/plain" })
+          outputName = baseName + ".txt"
+        } else {
+          blob = new Blob([textContent], { type: "text/plain" })
+          outputName = baseName + "." + toFormat.toLowerCase()
+        }
       }
 
       clearInterval(interval)
@@ -194,20 +320,6 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
       setResultUrl(url)
       setResultName(outputName)
       setStatus("done")
-
-      // Track file processing
-      try {
-        await fetch("/api/user/track-edit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            fileSize: file.size,
-            fileType: `${fromFormat}-to-${toFormat}`,
-            toolUsed: `convert-${fromFormat.toLowerCase()}-${toFormat.toLowerCase()}`,
-          }),
-        })
-      } catch {}
 
       // Auto-save to cloud
       saveToCloud(blob, outputName, `convert-${fromFormat.toLowerCase()}-${toFormat.toLowerCase()}`)

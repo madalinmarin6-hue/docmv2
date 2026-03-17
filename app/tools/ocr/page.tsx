@@ -4,6 +4,7 @@ import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 const LANGUAGES = [
   { code: "eng", label: "English" },
@@ -25,6 +26,7 @@ const LANGUAGES = [
 ]
 
 export default function OCRPage() {
+  usePing()
   const [image, setImage] = useState<string | null>(null)
   const [text, setText] = useState("")
   const [loading, setLoading] = useState(false)
@@ -124,14 +126,15 @@ export default function OCRPage() {
     setLoading(false)
   }, [image, lang])
 
-  const exportText = () => {
+  const exportText = async () => {
     const blob = new Blob([text], { type: "text/plain" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a"); a.href = url
     const outName = (fileName.replace(/\.[^.]+$/, "") || "ocr") + ".txt"
     a.download = outName
     a.click(); URL.revokeObjectURL(url)
-    trackEdit({ fileName: outName, fileSize: blob.size, fileType: "txt", toolUsed: "ocr" })
+    const editResult = await trackEdit({ fileName: outName, fileSize: blob.size, fileType: "txt", toolUsed: "ocr" })
+    if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
     saveToCloud(blob, outName, "ocr")
   }
 

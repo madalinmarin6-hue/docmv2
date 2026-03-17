@@ -263,6 +263,7 @@ export default function DashboardPage() {
     { name: "Remove BG", href: "/tools/remove-bg", icon: "B", color: "from-fuchsia-500 to-pink-500" },
     { name: "OCR", href: "/tools/ocr", icon: "O", color: "from-yellow-500 to-orange-500" },
     { name: "PDF Viewer", href: "/tools/pdf-viewer", icon: "V", color: "from-sky-500 to-blue-500" },
+    { name: "Word Viewer", href: "/tools/word-viewer", icon: "D", color: "from-blue-400 to-indigo-500" },
     { name: "My Cloud", href: "/cloud", icon: "☁", color: "from-violet-500 to-purple-500" },
   ]
 
@@ -299,13 +300,13 @@ export default function DashboardPage() {
 
         {/* UPGRADE CTA (free users only) */}
         {!isPremium && !isFriend && !isOwner && (
-          <section className="p-6 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-400/20 mb-8">
+          <section className={`p-6 rounded-2xl mb-8 ${cm ? "bg-amber-50 border border-amber-200" : "bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-400/20"}`}>
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div>
-                <h3 className="text-xl font-bold text-white">{c.upgrade}</h3>
-                <p className="text-white/50 mt-1 text-sm">{c.upgradeDesc}</p>
+                <h3 className={`text-xl font-bold ${cm ? "text-gray-900" : "text-white"}`}>{c.upgrade}</h3>
+                <p className={`mt-1 text-sm ${cm ? "text-gray-500" : "text-white/50"}`}>{c.upgradeDesc}</p>
                 {!profile?.emailVerified && (
-                  <p className="text-xs text-amber-400 mt-2">{c.verifyEmailRequired}</p>
+                  <p className={`text-xs mt-2 ${cm ? "text-amber-600" : "text-amber-400"}`}>{c.verifyEmailRequired}</p>
                 )}
               </div>
               <button disabled={!profile?.emailVerified} className="px-8 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-amber-500/20 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100">
@@ -319,37 +320,37 @@ export default function DashboardPage() {
           <>
             {/* WELCOME */}
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className={`text-3xl font-bold ${cm ? "text-gray-900" : "text-white"}`}>
                 {c.welcome} <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">{user.name || "User"}</span>
               </h1>
             </div>
 
             {/* STATS */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-              <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                 <p className="text-2xl font-bold text-blue-400">{profile?.totalFiles ?? profile?._count?.files ?? 0}</p>
-                <p className="text-xs text-white/40 mt-1">{c.filesProcessed}</p>
+                <p className={`text-xs mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.filesProcessed}</p>
               </div>
-              <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                 <p className="text-2xl font-bold text-emerald-400">{isUnlimited ? "∞" : `${editsLeft}/10`}</p>
-                <p className="text-xs text-white/40 mt-1">{c.editsLeft}</p>
+                <p className={`text-xs mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.editsLeft}</p>
               </div>
-              <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+              <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                 <p className="text-2xl font-bold text-purple-400">{isUnlimited ? "∞" : bonusEdits}</p>
-                <p className="text-xs text-white/40 mt-1">{c.bonusEdits}</p>
+                <p className={`text-xs mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.bonusEdits}</p>
               </div>
-              <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-                <p className={`text-2xl font-bold capitalize ${isOwner ? "text-red-400" : isPremium ? "text-amber-400" : "text-white/60"}`}>{isOwner ? "Owner" : user.plan}</p>
-                <p className="text-xs text-white/40 mt-1">{c.plan}</p>
+              <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
+                <p className={`text-2xl font-bold capitalize ${isOwner ? "text-red-400" : isPremium ? "text-amber-400" : cm ? "text-gray-600" : "text-white/60"}`}>{isOwner ? "Owner" : user.plan}</p>
+                <p className={`text-xs mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.plan}</p>
               </div>
             </div>
 
             {/* WATCH ADS FOR BONUS (free users only) */}
             {!isUnlimited && (
-              <section className="p-5 rounded-2xl bg-white/5 border border-white/10 mb-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <section className={`p-5 rounded-2xl mb-10 flex flex-col sm:flex-row items-center justify-between gap-4 ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">{c.watchAds}</h3>
-                  <p className="text-xs text-white/40 mt-0.5">{c.watchAdsDesc}</p>
+                  <h3 className={`text-sm font-semibold ${cm ? "text-gray-900" : "text-white"}`}>{c.watchAds}</h3>
+                  <p className={`text-xs mt-0.5 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.watchAdsDesc}</p>
                   {adMsg && <p className="text-xs text-emerald-400 mt-1">{adMsg}</p>}
                 </div>
                 <button onClick={handleWatchAds} disabled={adWatching} className="px-5 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
@@ -360,15 +361,15 @@ export default function DashboardPage() {
 
             {/* TOOLS */}
             <section className="mb-12">
-              <h2 className="text-xl font-bold text-white mb-5">{c.tools}</h2>
+              <h2 className={`text-xl font-bold mb-5 ${cm ? "text-gray-900" : "text-white"}`}>{c.tools}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {tools.map((tool) => (
                   <Link key={tool.href} href={tool.href}
-                    className="group p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-300 hover:scale-[1.03] text-center">
+                    className={`group p-4 rounded-2xl transition-all duration-300 hover:scale-[1.03] text-center ${cm ? "bg-white border border-gray-200 hover:border-gray-300 shadow-sm" : "bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10"}`}>
                     <div className={`w-11 h-11 mx-auto rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center text-xl mb-2 group-hover:scale-110 transition-transform`}>
                       {tool.icon}
                     </div>
-                    <p className="text-xs font-medium text-white/80">{tool.name}</p>
+                    <p className={`text-xs font-medium ${cm ? "text-gray-700" : "text-white/80"}`}>{tool.name}</p>
                   </Link>
                 ))}
               </div>
@@ -377,25 +378,25 @@ export default function DashboardPage() {
             {/* CLOUD STORAGE USAGE */}
             {activity && (
               <section className="mb-10">
-                <h2 className="text-xl font-bold text-white mb-5">{lang === "RO" ? "Stocare Cloud" : "Cloud Storage"}</h2>
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                <h2 className={`text-xl font-bold mb-5 ${cm ? "text-gray-900" : "text-white"}`}>{lang === "RO" ? "Stocare Cloud" : "Cloud Storage"}</h2>
+                <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" /></svg>
-                      <span className="text-sm font-medium text-white/80">{activity.cloudCount} {lang === "RO" ? "fi\u0219iere" : "files"}</span>
+                      <span className={`text-sm font-medium ${cm ? "text-gray-700" : "text-white/80"}`}>{activity.cloudCount} {lang === "RO" ? "fi\u0219iere" : "files"}</span>
                     </div>
-                    <span className="text-xs text-white/40">
+                    <span className={`text-xs ${cm ? "text-gray-400" : "text-white/40"}`}>
                       {(activity.cloudUsed / 1024 / 1024).toFixed(1)} MB / {(activity.cloudMax / 1024 / 1024).toFixed(0)} MB
                     </span>
                   </div>
-                  <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden">
+                  <div className={`w-full h-3 rounded-full overflow-hidden ${cm ? "bg-gray-100" : "bg-white/10"}`}>
                     <div
                       className={`h-full rounded-full transition-all ${activity.cloudUsed / activity.cloudMax > 0.9 ? "bg-red-500" : activity.cloudUsed / activity.cloudMax > 0.7 ? "bg-amber-500" : "bg-gradient-to-r from-purple-500 to-blue-500"}`}
                       style={{ width: `${Math.min(100, (activity.cloudUsed / activity.cloudMax) * 100)}%` }}
                     />
                   </div>
                   <div className="flex justify-between mt-2">
-                    <span className="text-[10px] text-white/30">{((activity.cloudUsed / activity.cloudMax) * 100).toFixed(1)}% {lang === "RO" ? "utilizat" : "used"}</span>
+                    <span className={`text-[10px] ${cm ? "text-gray-400" : "text-white/30"}`}>{((activity.cloudUsed / activity.cloudMax) * 100).toFixed(1)}% {lang === "RO" ? "utilizat" : "used"}</span>
                     <Link href="/cloud" className="text-[10px] text-purple-400 hover:text-purple-300 transition">{lang === "RO" ? "Gestioneaz\u0103 \u2192" : "Manage \u2192"}</Link>
                   </div>
                 </div>
@@ -406,35 +407,35 @@ export default function DashboardPage() {
             {activity && (
               <section className="grid lg:grid-cols-2 gap-6 mb-10">
                 {/* Recent Files */}
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-                  <h3 className="text-sm font-semibold text-white mb-4">{lang === "RO" ? "Fi\u0219iere Recente" : "Recent Files"}</h3>
+                <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
+                  <h3 className={`text-sm font-semibold mb-4 ${cm ? "text-gray-900" : "text-white"}`}>{lang === "RO" ? "Fi\u0219iere Recente" : "Recent Files"}</h3>
                   {activity.recentFiles.length > 0 ? (
                     <div className="space-y-2">
                       {activity.recentFiles.slice(0, 6).map(f => (
-                        <div key={f.id} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03]">
+                        <div key={f.id} className={`flex items-center justify-between p-2.5 rounded-lg ${cm ? "bg-gray-50" : "bg-white/[0.03]"}`}>
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center flex-shrink-0">
                               <span className="text-[10px] font-bold text-blue-400 uppercase">{f.file_type?.slice(0, 4)}</span>
                             </div>
                             <div className="min-w-0">
-                              <p className="text-xs font-medium text-white/80 truncate">{f.file_name}</p>
-                              <p className="text-[10px] text-white/30">{f.tool_used || f.file_type} \u2022 {(f.file_size / 1024).toFixed(0)} KB</p>
+                              <p className={`text-xs font-medium truncate ${cm ? "text-gray-700" : "text-white/80"}`}>{f.file_name}</p>
+                              <p className={`text-[10px] ${cm ? "text-gray-400" : "text-white/30"}`}>{f.tool_used || f.file_type} \u2022 {(f.file_size / 1024).toFixed(0)} KB</p>
                             </div>
                           </div>
-                          <span className="text-[10px] text-white/20 flex-shrink-0 ml-2">{new Date(f.created_at).toLocaleDateString()}</span>
+                          <span className={`text-[10px] flex-shrink-0 ml-2 ${cm ? "text-gray-300" : "text-white/20"}`}>{new Date(f.created_at).toLocaleDateString()}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-white/30 text-center py-6">{lang === "RO" ? "Niciun fi\u0219ier \u00eenc\u0103" : "No files yet"}</p>
+                    <p className={`text-xs text-center py-6 ${cm ? "text-gray-400" : "text-white/30"}`}>{lang === "RO" ? "Niciun fi\u0219ier \u00eenc\u0103" : "No files yet"}</p>
                   )}
                 </div>
 
                 {/* Most Used Tools + File Types */}
                 <div className="space-y-6">
                   {/* Most Used Tools */}
-                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-                    <h3 className="text-sm font-semibold text-white mb-4">{lang === "RO" ? "Instrumente Folosite" : "Most Used Tools"}</h3>
+                  <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
+                    <h3 className={`text-sm font-semibold mb-4 ${cm ? "text-gray-900" : "text-white"}`}>{lang === "RO" ? "Instrumente Folosite" : "Most Used Tools"}</h3>
                     {Object.keys(activity.toolBreakdown).length > 0 ? (
                       <div className="space-y-2">
                         {Object.entries(activity.toolBreakdown)
@@ -444,36 +445,36 @@ export default function DashboardPage() {
                             const max = Math.max(...Object.values(activity.toolBreakdown))
                             return (
                               <div key={tool} className="flex items-center gap-3">
-                                <span className="text-xs text-white/60 w-28 truncate">{tool}</span>
-                                <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                                <span className={`text-xs w-28 truncate ${cm ? "text-gray-600" : "text-white/60"}`}>{tool}</span>
+                                <div className={`flex-1 h-2 rounded-full overflow-hidden ${cm ? "bg-gray-100" : "bg-white/10"}`}>
                                   <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500" style={{ width: `${(count / max) * 100}%` }} />
                                 </div>
-                                <span className="text-[10px] text-white/30 w-6 text-right">{count}</span>
+                                <span className={`text-[10px] w-6 text-right ${cm ? "text-gray-400" : "text-white/30"}`}>{count}</span>
                               </div>
                             )
                           })}
                       </div>
                     ) : (
-                      <p className="text-xs text-white/30 text-center py-4">{lang === "RO" ? "Nicio activitate" : "No activity yet"}</p>
+                      <p className={`text-xs text-center py-4 ${cm ? "text-gray-400" : "text-white/30"}`}>{lang === "RO" ? "Nicio activitate" : "No activity yet"}</p>
                     )}
                   </div>
 
                   {/* File Type Breakdown */}
-                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
-                    <h3 className="text-sm font-semibold text-white mb-4">{lang === "RO" ? "Tipuri de Fi\u0219iere" : "File Types"}</h3>
+                  <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
+                    <h3 className={`text-sm font-semibold mb-4 ${cm ? "text-gray-900" : "text-white"}`}>{lang === "RO" ? "Tipuri de Fi\u0219iere" : "File Types"}</h3>
                     {Object.keys(activity.typeBreakdown).length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {Object.entries(activity.typeBreakdown)
                           .sort(([, a], [, b]) => b - a)
                           .slice(0, 8)
                           .map(([ext, count]) => (
-                            <span key={ext} className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 text-xs font-medium text-white/60">
-                              .{ext} <span className="text-white/30">({count})</span>
+                            <span key={ext} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${cm ? "bg-gray-50 border border-gray-200 text-gray-600" : "bg-white/[0.04] border border-white/10 text-white/60"}`}>
+                              .{ext} <span className={cm ? "text-gray-400" : "text-white/30"}>({count})</span>
                             </span>
                           ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-white/30 text-center py-4">{lang === "RO" ? "Nicio activitate" : "No activity yet"}</p>
+                      <p className={`text-xs text-center py-4 ${cm ? "text-gray-400" : "text-white/30"}`}>{lang === "RO" ? "Nicio activitate" : "No activity yet"}</p>
                     )}
                   </div>
                 </div>
@@ -484,21 +485,21 @@ export default function DashboardPage() {
             {activity && (
               <section className="mb-10">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                  <div className={`p-4 rounded-2xl text-center ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                     <p className="text-2xl font-bold text-cyan-400">{activity.accountAgeDays}</p>
-                    <p className="text-[10px] text-white/40 mt-1">{lang === "RO" ? "Zile de la \u00eenregistrare" : "Days since signup"}</p>
+                    <p className={`text-[10px] mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{lang === "RO" ? "Zile de la \u00eenregistrare" : "Days since signup"}</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                  <div className={`p-4 rounded-2xl text-center ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                     <p className="text-2xl font-bold text-pink-400">{activity.cloudCount}</p>
-                    <p className="text-[10px] text-white/40 mt-1">{lang === "RO" ? "Fi\u0219iere Cloud" : "Cloud Files"}</p>
+                    <p className={`text-[10px] mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{lang === "RO" ? "Fi\u0219iere Cloud" : "Cloud Files"}</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                  <div className={`p-4 rounded-2xl text-center ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                     <p className="text-2xl font-bold text-amber-400">{Object.keys(activity.toolBreakdown).length}</p>
-                    <p className="text-[10px] text-white/40 mt-1">{lang === "RO" ? "Instrumente folosite" : "Tools Used"}</p>
+                    <p className={`text-[10px] mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{lang === "RO" ? "Instrumente folosite" : "Tools Used"}</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                  <div className={`p-4 rounded-2xl text-center ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                     <p className="text-2xl font-bold text-emerald-400">{referralCount}</p>
-                    <p className="text-[10px] text-white/40 mt-1">{lang === "RO" ? "Prieteni invita\u021bi" : "Friends Referred"}</p>
+                    <p className={`text-[10px] mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{lang === "RO" ? "Prieteni invita\u021bi" : "Friends Referred"}</p>
                   </div>
                 </div>
               </section>
@@ -506,11 +507,11 @@ export default function DashboardPage() {
 
             {/* CONVERSIONS */}
             <section className="mb-12">
-              <h2 className="text-xl font-bold text-white mb-5">{c.quickConvert}</h2>
+              <h2 className={`text-xl font-bold mb-5 ${cm ? "text-gray-900" : "text-white"}`}>{c.quickConvert}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {conversions.map((cv) => (
                   <Link key={cv.href} href={cv.href}
-                    className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-center text-sm font-medium text-white/60 hover:text-white">
+                    className={`px-4 py-3 rounded-xl transition-all text-center text-sm font-medium ${cm ? "bg-white border border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900 shadow-sm" : "bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-white/60 hover:text-white"}`}>
                     {cv.name}
                   </Link>
                 ))}
@@ -520,18 +521,18 @@ export default function DashboardPage() {
             {/* RECENT ACTIVITY LOG */}
             {activity && activity.accessLogs.length > 0 && (
               <section className="mb-12">
-                <h2 className="text-xl font-bold text-white mb-5">{lang === "RO" ? "Activitate Recent\u0103" : "Recent Activity"}</h2>
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                <h2 className={`text-xl font-bold mb-5 ${cm ? "text-gray-900" : "text-white"}`}>{lang === "RO" ? "Activitate Recent\u0103" : "Recent Activity"}</h2>
+                <div className={`p-5 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                   <div className="space-y-2">
                     {activity.accessLogs.slice(0, 8).map((log, i) => (
-                      <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03]">
+                      <div key={i} className={`flex items-center justify-between p-2.5 rounded-lg ${cm ? "bg-gray-50" : "bg-white/[0.03]"}`}>
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
                             <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           </div>
-                          <span className="text-xs text-white/70">{log.page}</span>
+                          <span className={`text-xs ${cm ? "text-gray-700" : "text-white/70"}`}>{log.page}</span>
                         </div>
-                        <span className="text-[10px] text-white/25">{new Date(log.created_at).toLocaleString(lang === "RO" ? "ro-RO" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                        <span className={`text-[10px] ${cm ? "text-gray-300" : "text-white/25"}`}>{new Date(log.created_at).toLocaleString(lang === "RO" ? "ro-RO" : "en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                       </div>
                     ))}
                   </div>
@@ -544,41 +545,41 @@ export default function DashboardPage() {
         {tab === "profile" && (
           <div className="max-w-2xl mx-auto">
             {/* ACCOUNT INFO */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 mb-6">
-              <h2 className="text-lg font-semibold text-white mb-4">{c.accountInfo}</h2>
+            <div className={`p-6 rounded-2xl mb-6 ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
+              <h2 className={`text-lg font-semibold mb-4 ${cm ? "text-gray-900" : "text-white"}`}>{c.accountInfo}</h2>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-white/40">{c.email}</p>
-                  <p className="text-white/80 font-medium">{profile?.email}</p>
+                  <p className={cm ? "text-gray-400" : "text-white/40"}>{c.email}</p>
+                  <p className={`font-medium ${cm ? "text-gray-700" : "text-white/80"}`}>{profile?.email}</p>
                 </div>
                 <div>
-                  <p className="text-white/40">{c.plan}</p>
-                  <p className={`font-medium capitalize ${isOwner ? "text-red-400" : isPremium ? "text-amber-400" : "text-white/80"}`}>
+                  <p className={cm ? "text-gray-400" : "text-white/40"}>{c.plan}</p>
+                  <p className={`font-medium capitalize ${isOwner ? "text-red-400" : isPremium ? "text-amber-400" : cm ? "text-gray-700" : "text-white/80"}`}>
                     {planLabel}
                   </p>
                 </div>
                 <div>
-                  <p className="text-white/40">{c.verified}</p>
+                  <p className={cm ? "text-gray-400" : "text-white/40"}>{c.verified}</p>
                   <p className={`font-medium ${profile?.emailVerified ? "text-emerald-400" : "text-red-400"}`}>
                     {profile?.emailVerified ? "✅ Verified" : "❌ Not Verified"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-white/40">{c.memberSince}</p>
-                  <p className="text-white/80 font-medium">{profile?.createdAt ? new Date(profile.createdAt).toLocaleString(lang === "RO" ? "ro-RO" : "en-US", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</p>
+                  <p className={cm ? "text-gray-400" : "text-white/40"}>{c.memberSince}</p>
+                  <p className={`font-medium ${cm ? "text-gray-700" : "text-white/80"}`}>{profile?.createdAt ? new Date(profile.createdAt).toLocaleString(lang === "RO" ? "ro-RO" : "en-US", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</p>
                 </div>
                 <div>
-                  <p className="text-white/40">{c.filesProcessed}</p>
-                  <p className="text-white/80 font-medium">{profile?.totalFiles ?? profile?._count?.files ?? 0}</p>
+                  <p className={cm ? "text-gray-400" : "text-white/40"}>{c.filesProcessed}</p>
+                  <p className={`font-medium ${cm ? "text-gray-700" : "text-white/80"}`}>{profile?.totalFiles ?? profile?._count?.files ?? 0}</p>
                 </div>
               </div>
             </div>
 
             {/* EMAIL VERIFICATION */}
             {!profile?.emailVerified && (
-              <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-400/20 mb-6">
-                <h2 className="text-lg font-semibold text-white mb-2">{c.verifyEmail}</h2>
-                <p className="text-sm text-white/50 mb-4">{c.verifyEmailDesc}</p>
+              <div className={`p-6 rounded-2xl mb-6 ${cm ? "bg-amber-50 border border-amber-200" : "bg-amber-500/5 border border-amber-400/20"}`}>
+                <h2 className={`text-lg font-semibold mb-2 ${cm ? "text-gray-900" : "text-white"}`}>{c.verifyEmail}</h2>
+                <p className={`text-sm mb-4 ${cm ? "text-gray-500" : "text-white/50"}`}>{c.verifyEmailDesc}</p>
                 {verifyMsg && <p className="text-xs text-emerald-400 mb-3">{verifyMsg}</p>}
                 <button
                   onClick={async () => {
@@ -599,14 +600,14 @@ export default function DashboardPage() {
             )}
 
             {/* INVITE A FRIEND */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 mb-6">
-              <h2 className="text-lg font-semibold text-white mb-2">{c.inviteFriend}</h2>
-              <p className="text-sm text-white/50 mb-4">{c.inviteDesc}</p>
+            <div className={`p-6 rounded-2xl mb-6 ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
+              <h2 className={`text-lg font-semibold mb-2 ${cm ? "text-gray-900" : "text-white"}`}>{c.inviteFriend}</h2>
+              <p className={`text-sm mb-4 ${cm ? "text-gray-500" : "text-white/50"}`}>{c.inviteDesc}</p>
               <div className="flex items-center gap-2 mb-4">
                 <input
                   readOnly
                   value={referralCode ? `${typeof window !== "undefined" ? window.location.origin : ""}/auth/register?ref=${referralCode}` : "..."}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm font-mono"
+                  className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-mono ${cm ? "bg-gray-50 border border-gray-200 text-gray-700" : "bg-white/5 border border-white/10 text-white/80"}`}
                 />
                 <button
                   onClick={() => {
@@ -620,15 +621,15 @@ export default function DashboardPage() {
                   {copied ? c.linkCopied : c.copyLink}
                 </button>
               </div>
-              <p className="text-xs text-white/40">{c.friendsReferred}: <span className="text-emerald-400 font-bold">{referralCount}</span></p>
+              <p className={`text-xs ${cm ? "text-gray-400" : "text-white/40"}`}>{c.friendsReferred}: <span className="text-emerald-400 font-bold">{referralCount}</span></p>
             </div>
 
             {/* CLOUD STORAGE TOGGLE */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 mb-6">
+            <div className={`p-6 rounded-2xl mb-6 ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">{lang === "RO" ? "Stocare Cloud" : "Cloud Storage"}</h2>
-                  <p className="text-xs text-white/40 mt-1">{lang === "RO" ? "Activează sau dezactivează stocarea fișierelor în cloud pentru re-editare ulterioară." : "Enable or disable cloud file storage for easier re-editing later."}</p>
+                  <h2 className={`text-lg font-semibold ${cm ? "text-gray-900" : "text-white"}`}>{lang === "RO" ? "Stocare Cloud" : "Cloud Storage"}</h2>
+                  <p className={`text-xs mt-1 ${cm ? "text-gray-400" : "text-white/40"}`}>{lang === "RO" ? "Activează sau dezactivează stocarea fișierelor în cloud pentru re-editare ulterioară." : "Enable or disable cloud file storage for easier re-editing later."}</p>
                 </div>
                 <button
                   onClick={async () => {
@@ -645,7 +646,7 @@ export default function DashboardPage() {
                   }`} />
                 </button>
               </div>
-              <p className={`text-[11px] mt-2 ${(profile?.cloudEnabled ?? true) ? "text-emerald-400" : "text-white/30"}`}>
+              <p className={`text-[11px] mt-2 ${(profile?.cloudEnabled ?? true) ? "text-emerald-400" : cm ? "text-gray-400" : "text-white/30"}`}>
                 {(profile?.cloudEnabled ?? true)
                   ? (lang === "RO" ? "✓ Cloud activ — fișierele tale sunt salvate pentru re-editare." : "✓ Cloud active — your files are saved for re-editing.")
                   : (lang === "RO" ? "✗ Cloud dezactivat — fișierele nu vor fi salvate în cloud." : "✗ Cloud disabled — files will not be saved to cloud.")}
@@ -653,27 +654,27 @@ export default function DashboardPage() {
             </div>
 
             {/* EDIT FORM */}
-            <form onSubmit={handleSave} className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-5">
-              <h2 className="text-lg font-semibold text-white">{c.editProfile}</h2>
+            <form onSubmit={handleSave} className={`p-6 rounded-2xl space-y-5 ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
+              <h2 className={`text-lg font-semibold ${cm ? "text-gray-900" : "text-white"}`}>{c.editProfile}</h2>
               {message && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-400/20 text-emerald-300 text-sm text-center">{message}</div>}
               {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-400/20 text-red-300 text-sm text-center">{error}</div>}
               <div>
-                <label className="block text-sm font-medium text-white/60 mb-1.5">{c.displayName}</label>
+                <label className={`block text-sm font-medium mb-1.5 ${cm ? "text-gray-600" : "text-white/60"}`}>{c.displayName}</label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/30 transition" />
+                  className={`w-full px-4 py-3 rounded-xl focus:outline-none focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/30 transition ${cm ? "bg-gray-50 border border-gray-200 text-gray-800" : "bg-white/5 border border-white/10 text-white placeholder-white/30"}`} />
               </div>
-              <div className="border-t border-white/10 pt-5">
-                <p className="text-sm text-white/40 mb-4">{c.changePw}</p>
+              <div className={`border-t pt-5 ${cm ? "border-gray-200" : "border-white/10"}`}>
+                <p className={`text-sm mb-4 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.changePw}</p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-white/60 mb-1.5">{c.currentPw}</label>
+                    <label className={`block text-sm font-medium mb-1.5 ${cm ? "text-gray-600" : "text-white/60"}`}>{c.currentPw}</label>
                     <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/30 transition" />
+                      className={`w-full px-4 py-3 rounded-xl focus:outline-none focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/30 transition ${cm ? "bg-gray-50 border border-gray-200 text-gray-800" : "bg-white/5 border border-white/10 text-white placeholder-white/30"}`} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-white/60 mb-1.5">{c.newPw}</label>
+                    <label className={`block text-sm font-medium mb-1.5 ${cm ? "text-gray-600" : "text-white/60"}`}>{c.newPw}</label>
                     <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/30 transition" />
+                      className={`w-full px-4 py-3 rounded-xl focus:outline-none focus:border-blue-400/50 focus:ring-1 focus:ring-blue-400/30 transition ${cm ? "bg-gray-50 border border-gray-200 text-gray-800" : "bg-white/5 border border-white/10 text-white placeholder-white/30"}`} />
                   </div>
                 </div>
               </div>

@@ -31,7 +31,7 @@ export default function Navbar({
 
   const [menu, setMenu] = useState<string | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [onlineCount, setOnlineCount] = useState<{ users: number; visitors: number } | null>(null)
+  const [onlineCount, setOnlineCount] = useState<{ users: number; visitors: number; owners: number; admins: number; regular: number } | null>(null)
   const navRef = useRef<HTMLElement>(null)
   const toggleClassic = () => setClassicMode(!classicMode)
 
@@ -40,7 +40,7 @@ export default function Navbar({
     if (!isAdmin) return
     fetch("/api/admin/stats").then(r => r.json()).then(d => {
       if (d && typeof d.onlineUsers === "number") {
-        setOnlineCount({ users: d.onlineUsers, visitors: d.onlineVisitors ?? 0 })
+        setOnlineCount({ users: d.onlineUsers, visitors: d.onlineVisitors ?? 0, owners: d.onlineOwners ?? 0, admins: d.onlineAdmins ?? 0, regular: d.onlineRegular ?? 0 })
       }
     }).catch(() => {})
   }, [isAdmin])
@@ -132,7 +132,18 @@ export default function Navbar({
   {isAdmin && onlineCount && (
     <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cm ? "bg-green-50 text-green-700 border border-green-200" : "bg-green-500/15 text-green-400 border border-green-400/20"}`}>
       <span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span></span>
-      {onlineCount.users + onlineCount.visitors}
+      {onlineCount.users + onlineCount.visitors} online
+    </span>
+  )}
+  {isAdmin && onlineCount && (
+    <span className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${cm ? "bg-gray-100 text-gray-500 border border-gray-200" : "bg-white/5 text-white/40 border border-white/10"}`}>
+      {onlineCount.owners > 0 && <span className="text-red-400">{onlineCount.owners} owner{onlineCount.owners > 1 ? "s" : ""}</span>}
+      {onlineCount.owners > 0 && (onlineCount.admins > 0 || onlineCount.regular > 0 || onlineCount.visitors > 0) && <span className="opacity-30">·</span>}
+      {onlineCount.admins > 0 && <span className="text-amber-400">{onlineCount.admins} admin{onlineCount.admins > 1 ? "s" : ""}</span>}
+      {onlineCount.admins > 0 && (onlineCount.regular > 0 || onlineCount.visitors > 0) && <span className="opacity-30">·</span>}
+      {onlineCount.regular > 0 && <span className={cm ? "text-blue-600" : "text-blue-400"}>{onlineCount.regular} user{onlineCount.regular > 1 ? "s" : ""}</span>}
+      {onlineCount.regular > 0 && onlineCount.visitors > 0 && <span className="opacity-30">·</span>}
+      <span className={cm ? "text-gray-400" : "text-white/30"}>{onlineCount.visitors} guest{onlineCount.visitors !== 1 ? "s" : ""}</span>
     </span>
   )}
 </div>
@@ -200,6 +211,7 @@ export default function Navbar({
             { href: "/tools/powerpoint-editor", label: "PowerPoint Editor", icon: "M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3" },
             { href: "/tools/txt-editor", label: "TXT Editor", icon: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" },
             { href: "/tools/csv-editor", label: "CSV Editor", icon: "M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375" },
+            { href: "/tools/word-viewer", label: "Word Viewer", icon: "M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
           ].map(item => (
             <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`flex items-center gap-2.5 py-1.5 px-3 rounded-lg transition ${linkCls}`}>
               <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
@@ -346,6 +358,7 @@ export default function Navbar({
         { href: "/tools/powerpoint-editor", label: "PowerPoint" },
         { href: "/tools/txt-editor", label: "TXT Editor" },
         { href: "/tools/csv-editor", label: "CSV Editor" },
+        { href: "/tools/word-viewer", label: "Word Viewer" },
       ].map(item => (
         <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
       ))}

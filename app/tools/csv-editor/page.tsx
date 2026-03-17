@@ -5,10 +5,12 @@ import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 type CellData = string[][]
 
 export default function CsvEditorPage() {
+  usePing()
   const [data, setData] = useState<CellData>([])
   const [fileName, setFileName] = useState("")
   const [loaded, setLoaded] = useState(false)
@@ -64,7 +66,7 @@ export default function CsvEditorPage() {
     window.dispatchEvent(new Event("docm-collapse-sidebar"))
   }
 
-  const exportFile = useCallback((ext: "csv" | "tsv") => {
+  const exportFile = useCallback(async (ext: "csv" | "tsv") => {
     const d = ext === "tsv" ? "\t" : delimiter
     const csv = data.map(row => row.map(cell => cell.includes(d) || cell.includes('"') || cell.includes("\n") ? `"${cell.replace(/"/g, '""')}"` : cell).join(d)).join("\n")
     const blob = new Blob([csv], { type: ext === "tsv" ? "text/tab-separated-values" : "text/csv;charset=utf-8" })
@@ -75,7 +77,8 @@ export default function CsvEditorPage() {
     a.click()
     URL.revokeObjectURL(url)
     setStatus(`Exported as .${ext}!`)
-    trackEdit({ fileName: (fileName.replace(/\.[^.]+$/, "") || "data") + "." + ext, fileSize: blob.size, fileType: ext, toolUsed: "csv-editor" })
+    const editResult = await trackEdit({ fileName: (fileName.replace(/\.[^.]+$/, "") || "data") + "." + ext, fileSize: blob.size, fileType: ext, toolUsed: "csv-editor" })
+    if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
     saveToCloud(blob, (fileName.replace(/\.[^.]+$/, "") || "data") + "." + ext, "csv-editor")
   }, [data, delimiter, fileName])
 

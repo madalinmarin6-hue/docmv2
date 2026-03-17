@@ -5,6 +5,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 import ToolLayout from "../../../components/ToolLayout"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 type Slide = {
   type: "document" | "presentation"
@@ -15,6 +16,7 @@ type Slide = {
 }
 
 export default function PdfCreatorPage() {
+  usePing()
   const [mode, setMode] = useState<"document" | "presentation">("document")
   const [slides, setSlides] = useState<Slide[]>([
     { type: "document", title: "", content: "", bg: "#ffffff", textColor: "#000000" },
@@ -138,7 +140,7 @@ export default function PdfCreatorPage() {
     }
   }
 
-  function downloadPdf() {
+  async function downloadPdf() {
     if (!pdfBytes) return
     const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" })
     const url = URL.createObjectURL(blob)
@@ -148,7 +150,8 @@ export default function PdfCreatorPage() {
     a.download = outName
     a.click()
     URL.revokeObjectURL(url)
-    trackEdit({ fileName: outName, fileSize: blob.size, fileType: "pdf", toolUsed: "pdf-creator" })
+    const editResult = await trackEdit({ fileName: outName, fileSize: blob.size, fileType: "pdf", toolUsed: "pdf-creator" })
+    if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
     saveToCloud(blob, outName, "pdf-creator")
   }
 

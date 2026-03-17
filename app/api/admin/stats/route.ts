@@ -41,14 +41,31 @@ export async function GET() {
     const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
     let onlineUsers = 0
     let onlineVisitors = 0
+    let onlineOwners = 0
+    let onlineAdmins = 0
+    let onlineRegular = 0
     try {
-      // Count logged-in users online (have user_id)
-      const { count: usersOnline } = await supabaseAdmin
+      // Get logged-in user IDs that are online
+      const { data: onlineUserRows } = await supabaseAdmin
         .from("active_visitors")
-        .select("*", { count: "exact", head: true })
+        .select("user_id")
         .gte("last_ping", twoMinAgo)
         .not("user_id", "is", null)
-      onlineUsers = usersOnline || 0
+      const onlineUserIds = (onlineUserRows || []).map(r => r.user_id).filter(Boolean)
+      onlineUsers = onlineUserIds.length
+
+      // Get roles for online users
+      if (onlineUserIds.length > 0) {
+        const { data: roleRows } = await supabaseAdmin
+          .from("users")
+          .select("id, role")
+          .in("id", onlineUserIds)
+        for (const r of roleRows || []) {
+          if (r.role === "owner") onlineOwners++
+          else if (r.role === "admin") onlineAdmins++
+          else onlineRegular++
+        }
+      }
 
       // Count anonymous visitors (no user_id)
       const { count: visitorsOnline } = await supabaseAdmin
@@ -85,6 +102,9 @@ export async function GET() {
       weekVisits: weekVisits || 0,
       onlineUsers,
       onlineVisitors,
+      onlineOwners,
+      onlineAdmins,
+      onlineRegular,
       recentVisits: recentVisitsRes.data || [],
       recentUsers: recentUsersRes.data || [],
     })

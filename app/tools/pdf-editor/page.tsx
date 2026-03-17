@@ -6,6 +6,7 @@ import FileUploader from "@/components/FileUploader"
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 type PDFPage = { pageIndex: number; width: number; height: number; imageUrl: string }
 type TextAnn = { id: string; pageIndex: number; x: number; y: number; text: string; fontSize: number; color: string }
@@ -17,6 +18,7 @@ type RTab = "home"|"insert"|"annotate"|"pages"|"view"
 type Mode = "view"|"text"|"image"|"highlight"|"draw"|"create"|"sticky"|"shape"|"signature"
 
 export default function PDFEditorPage() {
+  usePing()
   const [pdfBytes, setPdfBytes] = useState<Uint8Array|null>(null)
   const [pages, setPages] = useState<PDFPage[]>([])
   const [annotations, setAnnotations] = useState<TextAnn[]>([])
@@ -82,18 +84,20 @@ export default function PDFEditorPage() {
   const renderPDF = useCallback(async (bytes: Uint8Array) => {
     setLoading(true)
     try {
-      const pdfDoc = await PDFDocument.load(bytes)
-      const cnt = pdfDoc.getPageCount()
+      const pdfjsLib = await import("pdfjs-dist")
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
+      const cnt = pdf.numPages
       const rendered: PDFPage[] = []
       for (let i = 0; i < cnt; i++) {
-        const pg = pdfDoc.getPage(i)
-        const {width,height} = pg.getSize()
-        const sd = await PDFDocument.create()
-        const [cp] = await sd.copyPages(pdfDoc,[i])
-        sd.addPage(cp)
-        const sb = await sd.save()
-        const blob = new Blob([sb as BlobPart],{type:"application/pdf"})
-        rendered.push({pageIndex:i,width,height,imageUrl:URL.createObjectURL(blob)})
+        const page = await pdf.getPage(i + 1)
+        const viewport = page.getViewport({ scale: 2 })
+        const canvas = document.createElement("canvas")
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+        const ctx = canvas.getContext("2d")!
+        await page.render({ canvasContext: ctx, viewport }).promise
+        rendered.push({ pageIndex: i, width: viewport.width / 2, height: viewport.height / 2, imageUrl: canvas.toDataURL() })
       }
       setPages(rendered); setPageOrder(rendered.map((_,i)=>i)); setActivePage(0)
       setStatusMsg(`Loaded ${cnt} page${cnt>1?"s":""}`)
@@ -181,7 +185,8 @@ export default function PDFEditorPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a"); a.href=url; a.download=(newDocTitle||"document")+".pdf"; a.click()
       URL.revokeObjectURL(url); setStatusMsg("PDF exported!")
-      trackEdit({ fileName: (newDocTitle||"document")+".pdf", fileSize: blob.size, fileType: "pdf", toolUsed: "pdf-editor" })
+      const editResult = await trackEdit({ fileName: (newDocTitle||"document")+".pdf", fileSize: blob.size, fileType: "pdf", toolUsed: "pdf-editor" })
+      if (!editResult.allowed) { setStatusMsg(editResult.error || "Edit limit reached"); setLoading(false); return }
       saveToCloud(blob, (newDocTitle||"document")+".pdf", "pdf-editor")
     } catch(err) { setStatusMsg("Export error"); console.error(err) }
     setLoading(false)
@@ -520,7 +525,7 @@ export default function PDFEditorPage() {
               {displayPages.map((origIdx,i)=>(
                 <button key={`${i}-${origIdx}`} onClick={()=>setActivePage(i)} className={`relative w-full aspect-[3/4] rounded-lg border-2 overflow-hidden transition-all ${i===activePage?(dm?"border-blue-400 shadow-lg shadow-blue-500/20":"border-blue-500 shadow-lg shadow-blue-500/10"):(dm?"border-[#404040] hover:border-[#555]":"border-gray-200 hover:border-gray-300")}`}>
                   {origIdx>=0&&pages[origIdx]?(
-                    <iframe src={pages[origIdx].imageUrl+"#toolbar=0&navpanes=0&scrollbar=0&view=FitH"} className="absolute inset-0 w-full h-full border-0 pointer-events-none bg-white" title={`Thumb ${i+1}`} tabIndex={-1}/>
+                    <img src={pages[origIdx].imageUrl} alt={`Page ${i+1}`} className="absolute inset-0 w-full h-full object-contain bg-white" draggable={false}/>
                   ):(
                     <div className={`absolute inset-0 flex items-center justify-center ${dm?"bg-[#2d2d2d]":"bg-gray-100"}`}><span className={`text-[9px] ${mc}`}>blank</span></div>
                   )}
@@ -532,9 +537,9 @@ export default function PDFEditorPage() {
 
             {/* PDF VIEW */}
             <div className={`flex-1 overflow-auto ${bg} py-4 flex justify-center`}>
-              <div className="relative mx-auto" style={{width:`${(zoom/100)*100}%`,aspectRatio:"612/792",cursor:mode==="draw"||mode==="highlight"?"crosshair":mode==="text"||mode==="sticky"||mode==="shape"||mode==="signature"?"crosshair":"default"}}
+              <div className="relative mx-auto shadow-lg" style={{width:`${(zoom/100)*(currentOrigIdx>=0&&pages[currentOrigIdx]?pages[currentOrigIdx].width:612)}px`,aspectRatio:`${currentOrigIdx>=0&&pages[currentOrigIdx]?pages[currentOrigIdx].width:612}/${currentOrigIdx>=0&&pages[currentOrigIdx]?pages[currentOrigIdx].height:792}`,maxWidth:"100%",cursor:mode==="draw"||mode==="highlight"?"crosshair":mode==="text"||mode==="sticky"||mode==="shape"||mode==="signature"?"crosshair":"default"}}
                 onClick={e=>handleCanvasClick(e,currentOrigIdx)} onMouseDown={handleDrawStart} onMouseMove={handleDrawMove} onMouseUp={handleDrawEnd} onMouseLeave={handleDrawEnd}>
-                {currentOrigIdx>=0&&pages[currentOrigIdx]?(<iframe src={pages[currentOrigIdx].imageUrl+"#toolbar=0&navpanes=0"} className="absolute inset-0 w-full h-full border-0 pointer-events-none" title={`Page ${activePage+1}`}/>):(<div className="absolute inset-0 flex items-center justify-center bg-white rounded-lg"><span className="text-gray-400">Blank Page</span></div>)}
+                {currentOrigIdx>=0&&pages[currentOrigIdx]?(<img src={pages[currentOrigIdx].imageUrl} alt={`Page ${activePage+1}`} className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none bg-white" draggable={false}/>):(<div className="absolute inset-0 flex items-center justify-center bg-white rounded-lg"><span className="text-gray-400">Blank Page</span></div>)}
 
                 {/* Text annotations */}
                 {annotations.filter(a=>a.pageIndex===currentOrigIdx).map(ann=>(

@@ -6,8 +6,10 @@ import ToolLayout from "../../../components/ToolLayout"
 import FileUploader from "../../../components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 export default function SplitPdfPage() {
+  usePing()
   const [file, setFile] = useState<File | null>(null)
   const [totalPages, setTotalPages] = useState(0)
   const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set())
@@ -98,7 +100,8 @@ export default function SplitPdfPage() {
       a.click()
       URL.revokeObjectURL(url)
       setStatusMsg(`Exported ${sorted.length} pages successfully!`)
-      trackEdit({ fileName: file.name.replace(".pdf", "") + "_split.pdf", fileSize: blob.size, fileType: "pdf", toolUsed: "split-pdf" })
+      const editResult = await trackEdit({ fileName: file.name.replace(".pdf", "") + "_split.pdf", fileSize: blob.size, fileType: "pdf", toolUsed: "split-pdf" })
+      if (!editResult.allowed) { setStatusMsg(editResult.error || "Edit limit reached"); setLoading(false); return }
       saveToCloud(blob, file.name.replace(".pdf", "") + "_split.pdf", "split-pdf")
     } catch (err) {
       console.error(err)

@@ -6,10 +6,12 @@ import ToolLayout from "../../../components/ToolLayout"
 import FileUploader from "../../../components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 type OutputFormat = "same" | "jpeg" | "png" | "webp"
 
 export default function CompressPage() {
+  usePing()
   const [file, setFile] = useState<File | null>(null)
   const [compressing, setCompressing] = useState(false)
   const [result, setResult] = useState<{ blob: Blob; name: string; originalSize: number; newSize: number } | null>(null)
@@ -148,13 +150,14 @@ export default function CompressPage() {
     setCompressing(false)
   }
 
-  function download() {
+  async function download() {
     if (!result) return
     const url = URL.createObjectURL(result.blob)
     const a = document.createElement("a")
     a.href = url; a.download = result.name; a.click()
     URL.revokeObjectURL(url)
-    trackEdit({ fileName: result.name, fileSize: result.newSize, fileType: "compressed", toolUsed: "compress" })
+    const editResult = await trackEdit({ fileName: result.name, fileSize: result.newSize, fileType: "compressed", toolUsed: "compress" })
+    if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
     saveToCloud(result.blob, result.name, "compress")
   }
 

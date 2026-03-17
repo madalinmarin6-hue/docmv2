@@ -67,6 +67,8 @@ const pathname = usePathname()
 const [collapsed, setCollapsed] = useState(false)
 const { classicMode, setClassicMode } = useApp()
 const { status } = useSession()
+const [cloudEnabled, setCloudEnabled] = useState(true)
+const [editInfo, setEditInfo] = useState<{ editsLeft: number; bonusEdits: number; unlimited: boolean } | null>(null)
 
 const collapseSidebar = useCallback(() => setCollapsed(true), [])
 
@@ -74,6 +76,27 @@ useEffect(() => {
   window.addEventListener("docm-collapse-sidebar", collapseSidebar)
   return () => window.removeEventListener("docm-collapse-sidebar", collapseSidebar)
 }, [collapseSidebar])
+
+useEffect(() => {
+  if (status !== "authenticated") return
+  fetch("/api/user/profile").then(r => r.json()).then(d => {
+    if (typeof d.cloudEnabled === "boolean") setCloudEnabled(d.cloudEnabled)
+    if (d && d.id) {
+      const today = new Date().toISOString().split("T")[0]
+      const used = d.dailyEditsDate === today ? (d.dailyEditsUsed ?? 0) : 0
+      const unlimited = d.plan === "premium" || d.plan === "friend" || d.role === "owner"
+      setEditInfo({ editsLeft: unlimited ? -1 : Math.max(0, 10 - used), bonusEdits: d.bonusEdits ?? 0, unlimited })
+    }
+  }).catch(() => {})
+}, [status])
+
+const toggleCloud = async () => {
+  const newVal = !cloudEnabled
+  setCloudEnabled(newVal)
+  try {
+    await fetch("/api/user/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cloudEnabled: newVal }) })
+  } catch { setCloudEnabled(!newVal) }
+}
 
 /* Auth gate — require login to use tools */
 if (status === "loading") {
@@ -149,10 +172,15 @@ return (
 
 <div className="flex gap-2 items-center">
 {status === "authenticated" && (
+<div className="flex items-center gap-1.5">
 <Link href="/cloud" className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition ${classicMode ? "bg-violet-50 text-purple-700 border border-purple-200 hover:bg-violet-100" : "bg-purple-500/15 text-purple-300 border border-purple-400/20 hover:bg-purple-500/25"}`}>
 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" /></svg>
 Cloud
 </Link>
+<button onClick={toggleCloud} title={cloudEnabled ? "Cloud auto-save ON" : "Cloud auto-save OFF"} className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${cloudEnabled ? "bg-emerald-500" : classicMode ? "bg-gray-300" : "bg-white/20"}`}>
+<span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${cloudEnabled ? "translate-x-4" : "translate-x-0"}`} />
+</button>
+</div>
 )}
 {status === "authenticated" && (
 <Link href="/dashboard" className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${classicMode ? "bg-gray-100 text-gray-700 hover:bg-gray-200" : "bg-white/5 border border-white/10 hover:bg-white/10"}`}>
@@ -219,6 +247,22 @@ active
 <main className={`flex-1 transition-all duration-300 ${collapsed ? "ml-0" : "ml-64"}`}>
 
 <div className="p-6">
+
+{editInfo && !editInfo.unlimited && editInfo.editsLeft <= 0 && editInfo.bonusEdits <= 0 && (
+<div className={`mb-6 p-5 rounded-2xl border text-center ${classicMode ? "bg-red-50 border-red-200" : "bg-red-500/10 border-red-400/20"}`}>
+<p className={`text-sm font-semibold ${classicMode ? "text-red-700" : "text-red-400"}`}>Daily edit limit reached (0/10)</p>
+<p className={`text-xs mt-1 ${classicMode ? "text-red-500" : "text-red-400/60"}`}>Watch 2 ads from your Dashboard to get bonus edits, or upgrade to Premium for unlimited edits.</p>
+<div className="flex justify-center gap-3 mt-3">
+<Link href="/dashboard" className="px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105 active:scale-95 transition-all">Go to Dashboard</Link>
+</div>
+</div>
+)}
+
+{editInfo && !editInfo.unlimited && editInfo.editsLeft > 0 && editInfo.editsLeft <= 3 && (
+<div className={`mb-4 px-4 py-2.5 rounded-xl border flex items-center justify-between ${classicMode ? "bg-amber-50 border-amber-200" : "bg-amber-500/10 border-amber-400/20"}`}>
+<p className={`text-xs ${classicMode ? "text-amber-700" : "text-amber-400"}`}>{editInfo.editsLeft} edit{editInfo.editsLeft > 1 ? "s" : ""} remaining today{editInfo.bonusEdits > 0 ? ` (+${editInfo.bonusEdits} bonus)` : ""}</p>
+</div>
+)}
 
 {children}
 

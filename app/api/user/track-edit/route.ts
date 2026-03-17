@@ -58,10 +58,14 @@ export async function POST(req: Request) {
       updatePayload.total_files = user.total_files + 1
     }
 
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("users")
       .update(updatePayload)
       .eq("id", sessionUser.id)
+
+    if (updateError) {
+      console.error("Track edit - user update failed:", updateError, "payload:", updatePayload)
+    }
 
     // Insert file record (always, regardless of user update)
     await supabaseAdmin.from("files").insert({

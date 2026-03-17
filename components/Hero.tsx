@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 
@@ -11,11 +11,31 @@ type HeroProps = {
 
 export default function Hero({ lang, classicMode }: HeroProps) {
 
-const { status } = useSession()
+const { data: session, status } = useSession()
 const isLoggedIn = status === "authenticated"
+const user = session?.user as { role?: string } | undefined
+const isAdmin = user?.role === "admin" || user?.role === "owner"
 const [docCount, setDocCount] = useState(0)
 const [usersOnline, setUsersOnline] = useState(0)
+const [onlineBreakdown, setOnlineBreakdown] = useState<{ owners: number; admins: number; users: number; guests: number } | null>(null)
 const [mounted, setMounted] = useState(false)
+
+const fetchOnlineBreakdown = useCallback(() => {
+  if (!isAdmin) return
+  fetch("/api/admin/stats").then(r => r.json()).then(d => {
+    if (d && typeof d.onlineUsers === "number") {
+      setOnlineBreakdown({ owners: d.onlineOwners ?? 0, admins: d.onlineAdmins ?? 0, users: d.onlineRegular ?? 0, guests: d.onlineVisitors ?? 0 })
+      setUsersOnline(d.onlineUsers + (d.onlineVisitors ?? 0))
+    }
+  }).catch(() => {})
+}, [isAdmin])
+
+useEffect(() => {
+  fetchOnlineBreakdown()
+  if (!isAdmin) return
+  const iv = setInterval(fetchOnlineBreakdown, 15000)
+  return () => clearInterval(iv)
+}, [isAdmin, fetchOnlineBreakdown])
 
 useEffect(() => {
   // Compute initial values only on client to avoid hydration mismatch
@@ -152,6 +172,11 @@ ${classicMode ? "bg-white/80 border-gray-200 shadow-md" : "bg-white/5 border-whi
 <p className="text-2xl md:text-3xl font-bold text-emerald-400">{usersOnline}</p>
 </div>
 <p className={`text-xs mt-1 ${classicMode ? "text-gray-500" : "text-white/40"}`}>{t.stat2}</p>
+{isAdmin && onlineBreakdown && (
+<p className={`text-[10px] mt-0.5 ${classicMode ? "text-gray-400" : "text-white/25"}`}>
+  ({onlineBreakdown.owners > 0 ? `${onlineBreakdown.owners} owner${onlineBreakdown.owners > 1 ? "s" : ""}, ` : ""}{onlineBreakdown.admins > 0 ? `${onlineBreakdown.admins} admin${onlineBreakdown.admins > 1 ? "s" : ""}, ` : ""}{onlineBreakdown.users} user{onlineBreakdown.users !== 1 ? "s" : ""}, {onlineBreakdown.guests} guest{onlineBreakdown.guests !== 1 ? "s" : ""})
+</p>
+)}
 </div>
 
 <div className={`p-5 rounded-2xl text-center border backdrop-blur-sm transition-all hover:scale-105

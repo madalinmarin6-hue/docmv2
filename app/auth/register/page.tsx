@@ -216,10 +216,16 @@ function RegisterForm() {
           {/* Accept Terms — must scroll through first */}
           <div className="space-y-2">
             <button type="button" onClick={() => setShowTerms(true)}
-              className={`w-full py-2.5 rounded-xl text-xs font-medium border transition ${acceptTerms ? "bg-emerald-500/10 border-emerald-400/30 text-emerald-400" : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"}`}>
-              {acceptTerms ? "Terms & Conditions accepted" : "Read & Accept Terms and Conditions"}
+              className={`w-full py-3.5 rounded-xl text-sm font-semibold border-2 transition-all ${acceptTerms ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-400" : "bg-amber-500/10 border-amber-400/40 text-amber-300 hover:bg-amber-500/20 hover:border-amber-400/60 animate-pulse"}`}>
+              <span className="flex items-center justify-center gap-2">
+                {acceptTerms ? (
+                  <><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Terms &amp; Conditions Accepted</>
+                ) : (
+                  <><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>Read &amp; Accept Terms and Conditions</>
+                )}
+              </span>
             </button>
-            {!acceptTerms && <p className="text-[10px] text-white/30 text-center">You must read and scroll through the terms before creating an account</p>}
+            {!acceptTerms && <p className="text-xs text-amber-400/80 text-center font-medium">⚠ You must read and accept the terms before creating an account</p>}
           </div>
 
           {/* Terms Modal */}

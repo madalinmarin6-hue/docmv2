@@ -6,6 +6,7 @@ import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
 import { trackEdit } from "@/lib/trackEdit"
 import { saveToCloud } from "@/lib/saveToCloud"
+import { usePing } from "@/lib/usePing"
 
 const HandsontableEditor = dynamic(() => import("@/modules/excel-editor/HandsontableEditor"), { ssr: false, loading: () => <div className="flex items-center justify-center h-[60vh] text-white/30">Loading spreadsheet...</div> })
 
@@ -20,6 +21,7 @@ function ensureMinSize(sheet: CellData, minRows = ROWS, minCols = COLS): CellDat
 }
 
 export default function ExcelEditorPage() {
+  usePing()
   const [loaded, setLoaded] = useState(false)
   const [fileName, setFileName] = useState("")
   const [status, setStatus] = useState("")
@@ -73,7 +75,8 @@ export default function ExcelEditorPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a"); a.href = url; a.download = outName; a.click(); URL.revokeObjectURL(url)
       setStatus("Exported!")
-      trackEdit({ fileName: outName, fileSize: blob.size, fileType: "xlsx", toolUsed: "excel-editor" })
+      const editResult = await trackEdit({ fileName: outName, fileSize: blob.size, fileType: "xlsx", toolUsed: "excel-editor" })
+      if (!editResult.allowed) { setStatus(editResult.error || "Edit limit reached"); return }
       saveToCloud(blob, outName, "excel-editor")
     } catch { setStatus("Export error") }
   }, [fileName])
