@@ -25,9 +25,12 @@ const LANGUAGES = [
   { code: "ara", label: "Arabic" },
 ]
 
+type PageImage = { index: number; dataUrl: string; selected: boolean }
+
 export default function OCRPage() {
   usePing()
-  const [image, setImage] = useState<string | null>(null)
+  const [images, setImages] = useState<PageImage[]>([])
+  const [activePage, setActivePage] = useState(0)
   const [text, setText] = useState("")
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -35,87 +38,114 @@ export default function OCRPage() {
   const [status, setStatus] = useState("")
   const [lang, setLang] = useState("eng")
   const [scale, setScale] = useState(2)
+  const [totalPages, setTotalPages] = useState(0)
+  const [currentOcrPage, setCurrentOcrPage] = useState(0)
   const workerRef = useRef<any>(null)
 
+  const togglePage = (i: number) => setImages(prev => prev.map((p, idx) => idx === i ? { ...p, selected: !p.selected } : p))
+  const selectAllPages = () => setImages(prev => prev.map(p => ({ ...p, selected: true })))
+  const deselectAllPages = () => setImages(prev => prev.map(p => ({ ...p, selected: false })))
+  const selectedPages = images.filter(p => p.selected)
+  const selectedCount = selectedPages.length
+
   const handleFile = useCallback(async (file: File) => {
-    setFileName(file.name); setText(""); setProgress(0); setStatus("")
+    setFileName(file.name); setText(""); setProgress(0); setStatus(""); setImages([])
     if (file.type === "application/pdf") {
-      setStatus("Rendering PDF page 1...")
+      setStatus("Rendering all PDF pages...")
       try {
         const pdfjsLib = await import("pdfjs-dist")
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
         const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
-        const page = await pdf.getPage(1)
-        const vp = page.getViewport({ scale: 2 })
-        const c = document.createElement("canvas"); c.width = vp.width; c.height = vp.height
-        await page.render({ canvasContext: c.getContext("2d")!, viewport: vp }).promise
-        setImage(c.toDataURL("image/png")); setStatus("PDF rendered — select language and extract text")
+        const numPages = pdf.numPages
+        setTotalPages(numPages)
+        const pageImages: PageImage[] = []
+        for (let i = 1; i <= numPages; i++) {
+          setStatus(`Rendering page ${i} of ${numPages}...`)
+          const page = await pdf.getPage(i)
+          const vp = page.getViewport({ scale: 2 })
+          const c = document.createElement("canvas")
+          c.width = vp.width; c.height = vp.height
+          await page.render({ canvasContext: c.getContext("2d")!, viewport: vp }).promise
+          pageImages.push({ index: i - 1, dataUrl: c.toDataURL("image/png"), selected: true })
+        }
+        setImages(pageImages)
+        setStatus(`PDF rendered — ${numPages} pages. Select language and extract text.`)
       } catch { setStatus("Error rendering PDF") }
     } else {
       const r = new FileReader()
-      r.onload = () => { setImage(r.result as string); setStatus("Image loaded — select language and extract text") }
+      r.onload = () => {
+        setImages([{ index: 0, dataUrl: r.result as string, selected: true }])
+        setTotalPages(1)
+        setStatus("Image loaded — select language and extract text")
+      }
       r.readAsDataURL(file)
     }
   }, [])
 
   const runOCR = useCallback(async () => {
-    if (!image) return
+    if (selectedCount === 0) return
     setLoading(true); setProgress(0); setText(""); setStatus(`Loading ${lang} language data...`)
     try {
       const T = await import("tesseract.js")
 
-      /* Terminate previous worker if language changed */
       if (workerRef.current) {
         try { await workerRef.current.terminate() } catch {}
         workerRef.current = null
       }
 
-      /* Create a fresh worker with the selected language */
       const worker = await T.createWorker(lang, 1, {
         logger: (m: { status: string; progress: number }) => {
           setStatus(m.status)
-          if (m.progress) setProgress(Math.round(m.progress * 100))
+          if (m.progress) {
+            const overallProgress = ((currentOcrPage + m.progress) / selectedCount) * 100
+            setProgress(Math.round(overallProgress))
+          }
         },
       })
       workerRef.current = worker
 
-      // Preprocess image: resize, grayscale, contrast boost, adaptive threshold
-      setStatus("Preprocessing image...")
-      const resizedImage = await new Promise<string>((resolve) => {
-        const img = new Image()
-        img.onload = () => {
-          const w = Math.round(img.width * (scale / 2))
-          const h = Math.round(img.height * (scale / 2))
-          const c = document.createElement("canvas")
-          c.width = w; c.height = h
-          const ctx = c.getContext("2d")!
-          ctx.imageSmoothingEnabled = true
-          ctx.imageSmoothingQuality = "high"
-          ctx.drawImage(img, 0, 0, w, h)
+      let allText = ""
+      const pagesToProcess = images.filter(p => p.selected)
 
-          // Convert to grayscale + boost contrast + binarize for handwriting
-          const imageData = ctx.getImageData(0, 0, w, h)
-          const d = imageData.data
-          for (let i = 0; i < d.length; i += 4) {
-            // Grayscale
-            let gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
-            // Contrast boost (factor 1.6)
-            gray = Math.min(255, Math.max(0, ((gray - 128) * 1.6) + 128))
-            // Simple threshold for cleaner text
-            gray = gray < 140 ? 0 : 255
-            d[i] = gray; d[i + 1] = gray; d[i + 2] = gray
+      for (let i = 0; i < pagesToProcess.length; i++) {
+        setCurrentOcrPage(i)
+        setActivePage(images.indexOf(pagesToProcess[i]))
+        setStatus(`Processing page ${pagesToProcess[i].index + 1} of ${pagesToProcess.length} selected...`)
+
+        const resizedImage = await new Promise<string>((resolve) => {
+          const img = new Image()
+          img.onload = () => {
+            const w = Math.round(img.width * (scale / 2))
+            const h = Math.round(img.height * (scale / 2))
+            const c = document.createElement("canvas")
+            c.width = w; c.height = h
+            const ctx = c.getContext("2d")!
+            ctx.imageSmoothingEnabled = true
+            ctx.imageSmoothingQuality = "high"
+            ctx.drawImage(img, 0, 0, w, h)
+            const imageData = ctx.getImageData(0, 0, w, h)
+            const d = imageData.data
+            for (let j = 0; j < d.length; j += 4) {
+              let gray = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]
+              gray = Math.min(255, Math.max(0, ((gray - 128) * 1.6) + 128))
+              gray = gray < 140 ? 0 : 255
+              d[j] = gray; d[j + 1] = gray; d[j + 2] = gray
+            }
+            ctx.putImageData(imageData, 0, 0)
+            resolve(c.toDataURL("image/png"))
           }
-          ctx.putImageData(imageData, 0, 0)
-          resolve(c.toDataURL("image/png"))
-        }
-        img.src = image
-      })
+          img.src = pagesToProcess[i].dataUrl
+        })
 
-      setStatus(`Recognizing text in ${LANGUAGES.find(l => l.code === lang)?.label || lang}...`)
-      const { data } = await worker.recognize(resizedImage)
-      setText(data.text)
-      const wc = data.text.split(/\s+/).filter(Boolean).length
-      setStatus(`Done! ${wc} words extracted (${LANGUAGES.find(l => l.code === lang)?.label || lang})`)
+        const { data } = await worker.recognize(resizedImage)
+        allText += (i > 0 ? `\n\n--- Page ${pagesToProcess[i].index + 1} ---\n\n` : "") + data.text
+
+        setProgress(Math.round(((i + 1) / pagesToProcess.length) * 100))
+        setText(allText)
+      }
+
+      const wc = allText.split(/\s+/).filter(Boolean).length
+      setStatus(`Done! ${wc} words extracted from ${pagesToProcess.length} page(s) (${LANGUAGES.find(l => l.code === lang)?.label || lang})`)
 
       await worker.terminate()
       workerRef.current = null
@@ -124,7 +154,7 @@ export default function OCRPage() {
       setStatus("OCR failed: " + (err instanceof Error ? err.message : "unknown error"))
     }
     setLoading(false)
-  }, [image, lang])
+  }, [images, lang, scale, selectedCount, currentOcrPage])
 
   const exportText = async () => {
     const blob = new Blob([text], { type: "text/plain" })
@@ -136,34 +166,36 @@ export default function OCRPage() {
     const editResult = await trackEdit({ fileName: outName, fileSize: blob.size, fileType: "txt", toolUsed: "ocr" })
     if (!editResult.allowed) { alert(editResult.error || "Edit limit reached"); return }
     saveToCloud(blob, outName, "ocr")
+    setStatus("Exported!")
   }
 
   return (
     <ToolLayout title="OCR Tool" subtitle="Extract text from images and scanned PDFs using Tesseract.js">
-      {!image ? (
-        <FileUploader accept=".png,.jpg,.jpeg,.bmp,.webp,.tiff,.pdf" label="Upload an image or scanned PDF" sublabel="Supports PNG, JPG, BMP, WebP, TIFF, PDF" onFile={handleFile} cloudFilterTypes={["png", "jpg", "jpeg", "bmp", "webp", "tiff", "pdf"]} />
+      {images.length === 0 ? (
+        <FileUploader accept=".png,.jpg,.jpeg,.bmp,.webp,.tiff,.pdf" label="Upload an image or scanned PDF" sublabel="Supports PNG, JPG, BMP, WebP, TIFF, PDF — all pages will be processed" onFile={handleFile} cloudFilterTypes={["png", "jpg", "jpeg", "bmp", "webp", "tiff", "pdf"]} />
       ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10 flex-wrap">
             <span className="text-sm text-white/70 truncate max-w-[200px]">{fileName}</span>
+            {totalPages > 1 && <span className="text-xs text-white/30">({totalPages} pages)</span>}
             <div className="w-px h-6 bg-white/10" />
             <div className="flex flex-col">
-              <label className="text-[9px] text-white/30 mb-0.5">Document Language</label>
+              <label className="text-[9px] text-white/30 mb-0.5">Language</label>
               <select value={lang} onChange={e => setLang(e.target.value)} className="h-8 px-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white" disabled={loading}>
                 {LANGUAGES.map(l => <option key={l.code} value={l.code} className="bg-gray-900">{l.label}</option>)}
               </select>
             </div>
             <div className="flex flex-col">
-              <label className="text-[9px] text-white/30 mb-0.5">Image Scale: {scale}x</label>
+              <label className="text-[9px] text-white/30 mb-0.5">Scale: {scale}x</label>
               <input type="range" min="1" max="4" step="0.5" value={scale} onChange={e => setScale(Number(e.target.value))} disabled={loading} className="w-20 h-8 accent-purple-500" />
             </div>
-            <button onClick={runOCR} disabled={loading} className="px-5 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-purple-500 hover:scale-105 active:scale-95 transition-all shadow-lg disabled:opacity-50">
-              {loading ? "Processing..." : "Extract Text"}
+            <button onClick={runOCR} disabled={loading || selectedCount === 0} className="px-5 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-purple-500 hover:scale-105 active:scale-95 transition-all shadow-lg disabled:opacity-50">
+              {loading ? `Processing ${currentOcrPage + 1}/${selectedCount}...` : `Extract Text (${selectedCount} of ${images.length} pages)`}
             </button>
             <div className="flex-1" />
             {text && <button onClick={exportText} className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 hover:scale-105 transition">Export .txt</button>}
             {text && <button onClick={() => navigator.clipboard.writeText(text)} className="px-4 py-2 rounded-xl text-sm bg-white/5 border border-white/10 hover:bg-white/10 transition">Copy</button>}
-            <button onClick={() => { setImage(null); setText(""); setStatus("") }} className="px-4 py-2 rounded-xl text-sm bg-white/5 border border-white/10 hover:bg-white/10 transition">Close</button>
+            <button onClick={() => { setImages([]); setText(""); setStatus(""); setTotalPages(0) }} className="px-4 py-2 rounded-xl text-sm bg-white/5 border border-white/10 hover:bg-white/10 transition">Close</button>
           </div>
 
           {loading && (
@@ -174,16 +206,45 @@ export default function OCRPage() {
           )}
           {!loading && status && <p className="text-xs text-emerald-400">{status}</p>}
 
+          {/* Page selection for multi-page PDFs */}
+          {images.length > 1 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-white/30">Select pages to OCR:</span>
+                <button onClick={selectAllPages} className="px-2 py-0.5 rounded text-[10px] bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 transition">All</button>
+                <button onClick={deselectAllPages} className="px-2 py-0.5 rounded text-[10px] bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 transition">None</button>
+                <span className="text-[10px] text-emerald-400 font-medium">{selectedCount} selected</span>
+              </div>
+              <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                {images.map((p, i) => (
+                  <div key={i} className="flex flex-col items-center gap-0.5">
+                    <button onClick={() => setActivePage(i)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${i === activePage ? "bg-purple-500/30 text-purple-300 border border-purple-400/30" : "bg-white/5 text-white/40 hover:text-white/60 border border-white/10"} ${!p.selected ? "opacity-40" : ""}`}>
+                      Page {i + 1}
+                    </button>
+                    <label className="flex items-center cursor-pointer">
+                      <input type="checkbox" checked={p.selected} onChange={() => togglePage(i)} className="rounded accent-purple-500 w-3 h-3" />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-xl border border-white/10 overflow-hidden bg-black/20">
-              <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 text-xs text-white/40">Source Image</div>
+              <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 text-xs text-white/40">
+                Source {images.length > 1 ? `(Page ${activePage + 1} of ${images.length})` : "Image"}
+              </div>
               <div className="p-2 flex items-center justify-center max-h-[55vh] overflow-auto">
-                <img src={image} alt="Source" className="max-w-full max-h-[50vh] object-contain rounded" />
+                {images[activePage] && <img src={images[activePage].dataUrl} alt="Source" className="max-w-full max-h-[50vh] object-contain rounded" />}
               </div>
             </div>
             <div className="rounded-xl border border-white/10 overflow-hidden bg-black/20 flex flex-col">
-              <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 text-xs text-white/40">Extracted Text ({LANGUAGES.find(l => l.code === lang)?.label})</div>
-              <textarea value={text} onChange={e => setText(e.target.value)} className="flex-1 px-4 py-3 bg-transparent text-white/90 text-sm font-mono leading-relaxed resize-none outline-none min-h-[50vh]" placeholder={loading ? "Processing..." : "Click 'Extract Text' to start OCR..."} />
+              <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 text-xs text-white/40">
+                Extracted Text ({LANGUAGES.find(l => l.code === lang)?.label})
+              </div>
+              <textarea value={text} onChange={e => setText(e.target.value)} className="flex-1 px-4 py-3 bg-transparent text-white/90 text-sm font-mono leading-relaxed resize-none outline-none min-h-[50vh]" placeholder={loading ? "Processing all pages..." : "Click 'Extract Text' to start OCR on all pages..."} />
             </div>
           </div>
         </div>

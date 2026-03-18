@@ -1,5 +1,5 @@
 "use client"
-import ConvertPage from "@/components/ConvertPage"
+import MultiImageToPdf from "@/components/MultiImageToPdf"
 export default function Page() {
-  return <ConvertPage title="JPG to PDF" subtitle="Convert JPG images to PDF documents" fromFormat="JPG" toFormat="PDF" acceptTypes=".jpg,.jpeg" fromColor="from-purple-500 to-violet-400" toColor="from-red-500 to-rose-400" />
+  return <MultiImageToPdf title="JPG to PDF" subtitle="Convert multiple JPG images to a single PDF — reorder pages before creating" acceptTypes=".jpg,.jpeg" />
 }

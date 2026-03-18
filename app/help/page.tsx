@@ -12,8 +12,10 @@ const catIcons = [
   "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
   "M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5",
   "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10",
+  "M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z",
+  "M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z",
 ]
-const catColors = ["from-blue-500 to-cyan-400", "from-red-500 to-rose-400", "from-purple-500 to-pink-400", "from-emerald-500 to-green-400"]
+const catColors = ["from-blue-500 to-cyan-400", "from-red-500 to-rose-400", "from-purple-500 to-pink-400", "from-emerald-500 to-green-400", "from-orange-500 to-amber-400", "from-violet-500 to-indigo-400"]
 
 const t = {
   EN: {
@@ -31,10 +33,12 @@ const t = {
     locationInfo: "Location", locationVal: "Bucharest, Romania",
     chatInfo: "Live Chat", chatVal: "Available 24/7",
     cats: [
-      { name: "Getting Started", items: ["Create a free account to access all tools", "Upload your file using drag & drop or file picker", "Choose the right tool from the sidebar", "Download or export your edited document"] },
-      { name: "PDF Tools", items: ["View, annotate and sign PDF files", "Add text, images and shapes to PDFs", "Create new PDFs from scratch", "Split, merge and compress PDFs"] },
-      { name: "Conversions", items: ["PDF to Word, Excel, PowerPoint, JPG, PNG", "Word, Excel, PowerPoint to PDF", "Image to PDF conversion", "Batch conversion coming soon"] },
-      { name: "Document Editors", items: ["Full Word editor with formatting", "Excel editor with formulas support", "PowerPoint slide editor", "TXT, CSV and code editors"] },
+      { name: "Getting Started", items: ["Create a free account to access all tools", "Upload your file using drag & drop or file picker", "Choose the right tool from the sidebar", "Download or export your edited document", "Pin your favorite tools for quick access", "Toggle cloud auto-save on/off from the toolbar"] },
+      { name: "PDF Tools", items: ["View, annotate and sign PDF files", "Split, merge, rotate and compress PDFs", "Delete specific pages from a PDF", "Encrypt/decrypt PDFs with AES-256", "Add watermarks and extract images", "Create new PDFs from scratch or images"] },
+      { name: "Conversions", items: ["PDF to Word, Excel, PowerPoint, JPG, PNG, HTML, TXT, CSV", "Word, Excel, PowerPoint to PDF", "Multi-image to PDF with drag & reorder", "Cross-format: Word to Excel, Excel to HTML, etc.", "Preview results before downloading", "50+ conversion combinations available"] },
+      { name: "Document Editors", items: ["Full Word editor with rich formatting", "Excel editor with formulas and cell styling", "PowerPoint slide editor with shapes", "TXT, CSV and code editors", "View Word, Excel, PPTX, JPG, PNG files online"] },
+      { name: "Security & Privacy", items: ["AES-256 password encryption for PDFs", "Files processed in your browser, not uploaded to servers", "Forgot password? Request recovery from owner", "All encryption records logged securely", "Cloud storage with toggle control"] },
+      { name: "Account & Plans", items: ["Free accounts get 10 edits per day", "Watch ads from Dashboard for bonus edits", "Premium plan for unlimited edits", "Cloud storage for all converted files", "Report bugs directly from the app"] },
     ],
   },
   RO: {
@@ -52,10 +56,12 @@ const t = {
     locationInfo: "Locatie", locationVal: "Bucuresti, Romania",
     chatInfo: "Chat Live", chatVal: "Disponibil 24/7",
     cats: [
-      { name: "Primii Pasi", items: ["Creaza un cont gratuit pentru acces la toate instrumentele", "Incarca fisierul prin drag & drop sau selectie", "Alege instrumentul potrivit din bara laterala", "Descarca sau exporta documentul editat"] },
-      { name: "Instrumente PDF", items: ["Vizualizeaza, adnoteaza si semneaza PDF-uri", "Adauga text, imagini si forme in PDF-uri", "Creaza PDF-uri noi de la zero", "Separa, unifica si comprima PDF-uri"] },
-      { name: "Conversii", items: ["PDF in Word, Excel, PowerPoint, JPG, PNG", "Word, Excel, PowerPoint in PDF", "Imagine in PDF", "Conversie in lot - in curand"] },
-      { name: "Editoare", items: ["Editor Word complet cu formatare", "Editor Excel cu suport formule", "Editor prezentari PowerPoint", "Editoare TXT, CSV si cod"] },
+      { name: "Primii Pasi", items: ["Creaza un cont gratuit pentru acces la toate instrumentele", "Incarca fisierul prin drag & drop sau selectie", "Alege instrumentul potrivit din bara laterala", "Descarca sau exporta documentul editat", "Fixeaza instrumentele preferate pentru acces rapid", "Activeaza/dezactiveaza salvarea automata in cloud"] },
+      { name: "Instrumente PDF", items: ["Vizualizeaza, adnoteaza si semneaza PDF-uri", "Separa, unifica, roteste si comprima PDF-uri", "Sterge pagini specifice dintr-un PDF", "Cripteaza/decripteaza PDF-uri cu AES-256", "Adauga watermark si extrage imagini", "Creaza PDF-uri noi de la zero sau din imagini"] },
+      { name: "Conversii", items: ["PDF in Word, Excel, PowerPoint, JPG, PNG, HTML, TXT, CSV", "Word, Excel, PowerPoint in PDF", "Mai multe imagini in PDF cu drag & reordonare", "Cross-format: Word in Excel, Excel in HTML, etc.", "Previzualizeaza rezultatele inainte de descarcare", "50+ combinatii de conversie disponibile"] },
+      { name: "Editoare", items: ["Editor Word complet cu formatare avansata", "Editor Excel cu formule si stilizare celule", "Editor prezentari PowerPoint cu forme", "Editoare TXT, CSV si cod", "Vizualizeaza Word, Excel, PPTX, JPG, PNG online"] },
+      { name: "Securitate & Confidentialitate", items: ["Criptare AES-256 cu parola pentru PDF-uri", "Fisierele se proceseaza in browser, nu pe servere", "Ai uitat parola? Solicita recuperare de la proprietar", "Toate inregistrarile de criptare sunt loggate securizat", "Stocare in cloud cu control de activare"] },
+      { name: "Cont & Planuri", items: ["Conturile gratuite primesc 10 editari pe zi", "Urmareste reclame din Dashboard pentru editari bonus", "Planul Premium pentru editari nelimitate", "Stocare in cloud pentru toate fisierele convertite", "Raporteaza bug-uri direct din aplicatie"] },
     ],
   }
 }
@@ -125,7 +131,7 @@ export default function HelpPage() {
         </div>
 
         {/* CATEGORIES */}
-        <div className="grid md:grid-cols-4 gap-4 mb-20">
+        <div className="grid md:grid-cols-3 gap-4 mb-20">
           {c.cats.map((cat, i) => (
             <div key={i} className={`p-6 rounded-2xl transition group ${cardCls}`}>
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${catColors[i]} flex items-center justify-center mb-4 group-hover:scale-110 transition`}>

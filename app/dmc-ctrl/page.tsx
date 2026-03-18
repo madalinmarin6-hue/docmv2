@@ -29,6 +29,7 @@ type UserRow = {
   plan: string
   emailVerified: boolean
   createdAt: string
+  isOnline: boolean
   _count: { files: number }
 }
 
@@ -98,10 +99,33 @@ type QuestionRow = {
   created_at: string
 }
 
+type EncryptRecord = {
+  id: string
+  user_id: string
+  user_name: string
+  user_email: string
+  file_name: string
+  original_name: string
+  file_size: number
+  encrypted_at: string
+  encrypt_password: string
+}
+
+type RecoveryRequest = {
+  id: string
+  user_id: string
+  user_name: string
+  user_email: string
+  file_name: string
+  file_size: number
+  requested_at: string
+  status: string
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [tab, setTab] = useState<"overview" | "users" | "activity" | "reviews" | "bugs" | "cloud" | "questions">("overview")
+  const [tab, setTab] = useState<"overview" | "users" | "activity" | "reviews" | "bugs" | "cloud" | "questions" | "encrypt">("overview")
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [files, setFiles] = useState<FileRow[]>([])
@@ -127,6 +151,11 @@ export default function AdminPage() {
 
   // Questions
   const [questions, setQuestions] = useState<QuestionRow[]>([])
+
+  // Encrypt records
+  const [encryptRecords, setEncryptRecords] = useState<EncryptRecord[]>([])
+  const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([])
+  const [encryptSubTab, setEncryptSubTab] = useState<"records" | "recovery">("records")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/auth/login")
@@ -164,6 +193,11 @@ export default function AdminPage() {
       }).finally(() => setLoading(false))
     } else if (tab === "questions") {
       fetch("/api/questions").then(r => r.json()).then(setQuestions).finally(() => setLoading(false))
+    } else if (tab === "encrypt") {
+      Promise.all([
+        fetch("/api/encrypt-record").then(r => r.json()).then(d => setEncryptRecords(d.records || [])),
+        fetch("/api/encrypt-recovery").then(r => r.json()).then(d => setRecoveryRequests(d.requests || [])),
+      ]).finally(() => setLoading(false))
     }
   }, [tab, status])
 
@@ -174,6 +208,14 @@ export default function AdminPage() {
       fetch("/api/admin/bug-reports").then(r => r.json()).then(setBugs)
       fetch("/api/admin/reviews").then(r => r.json()).then(setReviews)
     }, 5000)
+    return () => clearInterval(iv)
+  }, [tab, status])
+
+  useEffect(() => {
+    if (tab !== "users" || status !== "authenticated") return
+    const iv = setInterval(() => {
+      fetch("/api/admin/users").then(r => r.json()).then(setUsers)
+    }, 10000)
     return () => clearInterval(iv)
   }, [tab, status])
 
@@ -259,7 +301,7 @@ export default function AdminPage() {
   }
 
   const cloudSizeLabel = cloudTotalSize > 0 ? ` (${cloudTotalSize < 1024*1024 ? (cloudTotalSize/1024).toFixed(1)+" KB" : (cloudTotalSize/(1024*1024)).toFixed(1)+" MB"})` : ""
-  const tabs = ["overview", "users", "activity", "reviews", "bugs", "cloud", "questions"] as const
+  const tabs = ["overview", "users", "activity", "reviews", "bugs", "cloud", "questions", "encrypt"] as const
   const tabIcons: Record<string, string> = {
     overview: "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z",
     users: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
@@ -268,6 +310,7 @@ export default function AdminPage() {
     bugs: "M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152-6.135 3 3 0 10-2.055 0c-.16 2.14-.613 4.248-1.34 6.24M12 12.75a2.25 2.25 0 002.248-2.354M12 12.75a2.25 2.25 0 01-2.248-2.354M12 8.25c.995 0 1.971-.08 2.922-.236.403-.066.74-.358.795-.762a3.778 3.778 0 00-.399-2.25M12 8.25c-.995 0-1.97-.08-2.922-.236-.402-.066-.74-.358-.795-.762a3.734 3.734 0 01.4-2.253M12 8.25a2.25 2.25 0 00-2.248 2.146M12 8.25a2.25 2.25 0 012.248 2.146M8.683 5a6.032 6.032 0 01-1.155-1.002c.07-.63.27-1.222.574-1.747m.581 2.749A3.75 3.75 0 0112 3.75c1.274 0 2.404.634 3.087 1.603m-.17-.354c.304.525.504 1.117.574 1.747A6.034 6.034 0 0115.317 5",
     cloud: "M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z",
     questions: "M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z",
+    encrypt: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z",
   }
   const onlineTotal = (stats?.onlineUsers ?? 0) + (stats?.onlineVisitors ?? 0)
 
@@ -422,8 +465,9 @@ export default function AdminPage() {
                         <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition">
                           <td className="py-2.5 pr-3">
                             <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                              <div className="relative w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
                                 <span className="text-white font-bold text-[10px]">{u.name.charAt(0).toUpperCase()}</span>
+                                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0b1333] ${u.isOnline ? "bg-green-500" : "bg-white/20"}`} title={u.isOnline ? "Online" : "Offline"} />
                               </div>
                               <div className="min-w-0">
                                 <p className="text-white/80 font-medium truncate">{u.name}</p>
@@ -717,6 +761,89 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ═══ ENCRYPT RECORDS ═══ */}
+            {tab === "encrypt" && (
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <button onClick={() => setEncryptSubTab("records")} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${encryptSubTab === "records" ? "bg-white/10 text-white border border-white/20" : "text-white/40 hover:text-white/60 border border-transparent"}`}>
+                    Encryption Records ({encryptRecords.length})
+                  </button>
+                  <button onClick={() => setEncryptSubTab("recovery")} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${encryptSubTab === "recovery" ? "bg-white/10 text-white border border-white/20" : "text-white/40 hover:text-white/60 border border-transparent"}`}>
+                    Recovery Requests ({recoveryRequests.length})
+                    {recoveryRequests.filter(r => r.status === "pending").length > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[9px]">{recoveryRequests.filter(r => r.status === "pending").length} new</span>}
+                  </button>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                  {encryptSubTab === "records" ? (
+                    <>
+                      <h3 className="text-sm font-semibold text-white mb-4">All Encryption Records</h3>
+                      <p className="text-[10px] text-white/30 mb-3">Every PDF encrypted through DocFlow is logged here with the password used.</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-white/40 text-left border-b border-white/10">
+                              <th className="pb-2.5 pr-3">User</th>
+                              <th className="pb-2.5 pr-3">Original File</th>
+                              <th className="pb-2.5 pr-3">Encrypted File</th>
+                              <th className="pb-2.5 pr-3">Password</th>
+                              <th className="pb-2.5 pr-3">Size</th>
+                              <th className="pb-2.5">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {encryptRecords.map(r => (
+                              <tr key={r.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                                <td className="py-2.5 pr-3">
+                                  <p className="text-white/70">{r.user_name}</p>
+                                  <p className="text-white/25 text-[10px]">{r.user_email}</p>
+                                </td>
+                                <td className="py-2.5 pr-3 text-white/50 truncate max-w-[150px]">{r.original_name || "\u2014"}</td>
+                                <td className="py-2.5 pr-3 text-orange-400/70 truncate max-w-[150px]">{r.file_name}</td>
+                                <td className="py-2.5 pr-3"><span className="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-300 font-mono text-[11px] select-all">{r.encrypt_password || "\u2014"}</span></td>
+                                <td className="py-2.5 pr-3 text-white/40">{r.file_size < 1024 * 1024 ? (r.file_size / 1024).toFixed(1) + " KB" : (r.file_size / (1024 * 1024)).toFixed(1) + " MB"}</td>
+                                <td className="py-2.5 text-white/30">{new Date(r.encrypted_at).toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {encryptRecords.length === 0 && <p className="text-white/30 text-xs py-8 text-center">No encryption records yet</p>}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-sm font-semibold text-white mb-4">Password Recovery Requests</h3>
+                      <p className="text-[10px] text-white/30 mb-3">Users who forgot their encryption password and requested recovery assistance.</p>
+                      <div className="space-y-2">
+                        {recoveryRequests.map(r => (
+                          <div key={r.id} className={`p-4 rounded-xl border transition ${r.status === "pending" ? "bg-amber-500/5 border-amber-500/20" : r.status === "resolved" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/[0.03] border-white/5"}`}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <p className="text-xs font-medium text-white/80">{r.user_name}</p>
+                                  <p className="text-[10px] text-white/30">{r.user_email}</p>
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${r.status === "pending" ? "bg-amber-500/20 text-amber-400" : r.status === "resolved" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/40"}`}>{r.status}</span>
+                                </div>
+                                <p className="text-xs text-white/50">File: <span className="text-orange-400/70">{r.file_name}</span></p>
+                                <p className="text-[10px] text-white/25 mt-1">{new Date(r.requested_at).toLocaleString()}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                {r.status === "pending" && (
+                                  <button onClick={async () => { await fetch("/api/encrypt-recovery", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, status: "resolved" }) }); setRecoveryRequests(prev => prev.map(rr => rr.id === r.id ? { ...rr, status: "resolved" } : rr)) }}
+                                    className="text-[11px] px-2.5 py-1 rounded-lg font-medium bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition">Mark Resolved</button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {recoveryRequests.length === 0 && <p className="text-white/30 text-xs py-8 text-center">No recovery requests yet</p>}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
 

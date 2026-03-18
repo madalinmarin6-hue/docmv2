@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar"
 import Hero from "@/components/Hero"
 import FloatingIcons from "@/components/FloatingIcons"
 import WhyPlatform from "@/components/WhyPlatform"
+import FeaturesOverview from "@/components/FeaturesOverview"
 import FileTypes from "@/components/FileTypes"
 import Reviews from "@/components/Reviews"
 import ScrollTop from "@/components/ScrollTop"
@@ -42,6 +43,8 @@ classicMode={classicMode}
 {/* SECTIUNI NOI */}
 
 <WhyPlatform lang={lang} classicMode={classicMode}/>
+
+<FeaturesOverview lang={lang} classicMode={classicMode}/>
 
 <FileTypes lang={lang} classicMode={classicMode}/>
 

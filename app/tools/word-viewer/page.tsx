@@ -138,22 +138,26 @@ export default function WordViewerPage() {
           </div>
 
           {/* DOCUMENT VIEW */}
-          <div className={`flex-1 overflow-auto ${dm ? "bg-[#1e1e1e]" : "bg-[#e8eaed]"} py-6 flex justify-center`}>
-            <div
-              ref={contentRef}
-              className="bg-white shadow-lg"
-              style={{
-                width: `${(zoom / 100) * 794}px`,
-                minHeight: `${(zoom / 100) * 1123}px`,
-                padding: `${(zoom / 100) * 96}px ${(zoom / 100) * 72}px`,
-                transformOrigin: "top center",
-                color: "#222",
-                fontFamily: "Calibri, Arial, sans-serif",
-                lineHeight: "1.6",
-                fontSize: `${(zoom / 100) * 14}px`,
-              }}
-              dangerouslySetInnerHTML={{ __html: `<style>img{max-width:100%;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:6px 10px;}h1,h2,h3{color:#1a1a2e;}p{margin:0.4em 0;}ul,ol{padding-left:1.5em;}</style>${html}` }}
-            />
+          <div className={`flex-1 overflow-auto ${dm ? "bg-[#1e1e1e]" : "bg-[#e8eaed]"} py-6`}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: `${(zoom / 100) * 24}px` }}>
+              <div
+                ref={contentRef}
+                className="bg-white shadow-lg"
+                style={{
+                  width: `${(zoom / 100) * 794}px`,
+                  minHeight: `${(zoom / 100) * 1123}px`,
+                  padding: `${(zoom / 100) * 96}px ${(zoom / 100) * 72}px`,
+                  transformOrigin: "top center",
+                  color: "#222",
+                  fontFamily: "Calibri, Arial, sans-serif",
+                  lineHeight: "1.6",
+                  fontSize: `${(zoom / 100) * 14}px`,
+                  wordWrap: "break-word",
+                  overflowWrap: "break-word",
+                }}
+                dangerouslySetInnerHTML={{ __html: `<style>img{max-width:100%;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:6px 10px;}h1,h2,h3{color:#1a1a2e;}p{margin:0.4em 0;}ul,ol{padding-left:1.5em;}*{max-width:100%;box-sizing:border-box;}</style>${html}` }}
+              />
+            </div>
           </div>
 
           {/* STATUS BAR */}

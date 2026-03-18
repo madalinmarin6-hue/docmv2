@@ -159,31 +159,75 @@ export default function Navbar({
       <svg className={`w-3 h-3 transition-transform ${menu === "convert" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
     </button>
     {menu === "convert" && (
-      <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[420px] p-5 ${dropCls}`}>
-        <div className="grid grid-cols-2 gap-6 text-sm">
+      <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[780px] p-5 ${dropCls}`}>
+        <div className="grid grid-cols-4 gap-5 text-sm">
           <div>
-            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-blue-600" : "text-blue-400"}`}>Convert from PDF</p>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-blue-600" : "text-blue-400"}`}>From PDF</p>
             <div className="space-y-0.5">
               {[
-                { href: "/convert/pdf-to-word", label: "PDF \u2192 Word" },
-                { href: "/convert/pdf-to-excel", label: "PDF \u2192 Excel" },
-                { href: "/convert/pdf-to-pptx", label: "PDF \u2192 PPTX" },
-                { href: "/convert/pdf-to-jpg", label: "PDF \u2192 JPG" },
-                { href: "/convert/pdf-to-png", label: "PDF \u2192 PNG" },
+                { href: "/convert/pdf-to-word", label: "PDF → Word" },
+                { href: "/convert/pdf-to-excel", label: "PDF → Excel" },
+                { href: "/convert/pdf-to-pptx", label: "PDF → PPTX" },
+                { href: "/convert/pdf-to-jpg", label: "PDF → JPG" },
+                { href: "/convert/pdf-to-png", label: "PDF → PNG" },
+                { href: "/convert/pdf-to-html", label: "PDF → HTML" },
+                { href: "/convert/pdf-to-txt", label: "PDF → TXT" },
+                { href: "/convert/pdf-to-csv", label: "PDF → CSV" },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg text-[13px] transition ${linkCls}`}>{item.label}</Link>
               ))}
             </div>
           </div>
           <div>
-            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-purple-600" : "text-purple-400"}`}>Convert to PDF</p>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-purple-600" : "text-purple-400"}`}>To PDF</p>
             <div className="space-y-0.5">
               {[
-                { href: "/convert/word-to-pdf", label: "Word \u2192 PDF" },
-                { href: "/convert/excel-to-pdf", label: "Excel \u2192 PDF" },
-                { href: "/convert/pptx-to-pdf", label: "PPTX \u2192 PDF" },
-                { href: "/convert/jpg-to-pdf", label: "JPG \u2192 PDF" },
-                { href: "/convert/png-to-pdf", label: "PNG \u2192 PDF" },
+                { href: "/convert/word-to-pdf", label: "Word → PDF" },
+                { href: "/convert/excel-to-pdf", label: "Excel → PDF" },
+                { href: "/convert/pptx-to-pdf", label: "PPTX → PDF" },
+                { href: "/convert/jpg-to-pdf", label: "JPG → PDF" },
+                { href: "/convert/png-to-pdf", label: "PNG → PDF" },
+                { href: "/convert/html-to-pdf", label: "HTML → PDF" },
+                { href: "/convert/txt-to-pdf", label: "TXT → PDF" },
+                { href: "/convert/csv-to-pdf", label: "CSV → PDF" },
+                { href: "/convert/markdown-to-pdf", label: "Markdown → PDF" },
+                { href: "/convert/image-to-pdf", label: "Image → PDF" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg text-[13px] transition ${linkCls}`}>{item.label}</Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-emerald-600" : "text-emerald-400"}`}>Word</p>
+            <div className="space-y-0.5">
+              {[
+                { href: "/convert/word-to-excel", label: "Word → Excel" },
+                { href: "/convert/excel-to-word", label: "Excel → Word" },
+                { href: "/convert/word-to-pptx", label: "Word → PPTX" },
+                { href: "/convert/pptx-to-word", label: "PPTX → Word" },
+                { href: "/convert/word-to-html", label: "Word → HTML" },
+                { href: "/convert/html-to-word", label: "HTML → Word" },
+                { href: "/convert/word-to-txt", label: "Word → TXT" },
+                { href: "/convert/txt-to-word", label: "TXT → Word" },
+                { href: "/convert/word-to-jpg", label: "Word → JPG" },
+                { href: "/convert/word-to-png", label: "Word → PNG" },
+                { href: "/convert/jpg-to-word", label: "JPG → Word" },
+                { href: "/convert/png-to-word", label: "PNG → Word" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg text-[13px] transition ${linkCls}`}>{item.label}</Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-orange-600" : "text-orange-400"}`}>Excel & Other</p>
+            <div className="space-y-0.5">
+              {[
+                { href: "/convert/excel-to-csv", label: "Excel → CSV" },
+                { href: "/convert/csv-to-excel", label: "CSV → Excel" },
+                { href: "/convert/excel-to-html", label: "Excel → HTML" },
+                { href: "/convert/html-to-excel", label: "HTML → Excel" },
+                { href: "/convert/excel-to-txt", label: "Excel → TXT" },
+                { href: "/convert/pptx-to-html", label: "PPTX → HTML" },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg text-[13px] transition ${linkCls}`}>{item.label}</Link>
               ))}
@@ -202,22 +246,51 @@ export default function Navbar({
       <svg className={`w-3 h-3 transition-transform ${menu === "tools" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
     </button>
     {menu === "tools" && (
-      <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[240px] p-3 ${dropCls}`}>
-        <div className="space-y-0.5 text-[13px]">
-          {[
-            { href: "/tools/pdf-editor", label: "PDF Editor", icon: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" },
-            { href: "/tools/word-editor", label: "Word Editor", icon: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" },
-            { href: "/tools/excel-editor", label: "Excel Editor", icon: "M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125" },
-            { href: "/tools/powerpoint-editor", label: "PowerPoint Editor", icon: "M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3" },
-            { href: "/tools/txt-editor", label: "TXT Editor", icon: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" },
-            { href: "/tools/csv-editor", label: "CSV Editor", icon: "M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375" },
-            { href: "/tools/word-viewer", label: "Word Viewer", icon: "M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
-          ].map(item => (
-            <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`flex items-center gap-2.5 py-1.5 px-3 rounded-lg transition ${linkCls}`}>
-              <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
-              {item.label}
-            </Link>
-          ))}
+      <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[480px] p-4 ${dropCls}`}>
+        <div className="grid grid-cols-2 gap-4 text-[13px]">
+          <div>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-red-600" : "text-red-400"}`}>PDF Tools</p>
+            <div className="space-y-0.5">
+              {[
+                { href: "/tools/pdf-viewer", label: "PDF Viewer" },
+                { href: "/tools/pdf-editor", label: "PDF Editor" },
+                { href: "/tools/pdf-creator", label: "PDF Creator" },
+                { href: "/tools/split-pdf", label: "Split PDF" },
+                { href: "/tools/merge-pdf", label: "Merge PDF" },
+                { href: "/tools/rotate-pdf", label: "Rotate PDF" },
+                { href: "/tools/compress", label: "Compress" },
+                { href: "/tools/watermark", label: "Add Watermark" },
+                { href: "/tools/encrypt-pdf", label: "Encrypt / Decrypt" },
+                { href: "/tools/extract-images", label: "Extract Images" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-purple-600" : "text-purple-400"}`}>Editors</p>
+            <div className="space-y-0.5">
+              {[
+                { href: "/tools/word-editor", label: "Word Editor" },
+                { href: "/tools/excel-editor", label: "Excel Editor" },
+                { href: "/tools/powerpoint-editor", label: "PowerPoint Editor" },
+                { href: "/tools/txt-editor", label: "TXT Editor" },
+                { href: "/tools/csv-editor", label: "CSV Editor" },
+                { href: "/tools/word-viewer", label: "Word Viewer" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
+              ))}
+            </div>
+            <p className={`mb-2 mt-4 font-semibold text-xs tracking-wider uppercase ${cm ? "text-emerald-600" : "text-emerald-400"}`}>Utilities</p>
+            <div className="space-y-0.5">
+              {[
+                { href: "/tools/ocr", label: "OCR (Image → Text)" },
+                { href: "/tools/remove-bg", label: "Remove Background" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     )}
@@ -238,10 +311,13 @@ export default function Navbar({
             { href: "/reviews", label: "Reviews" },
             { href: "/blog", label: "Blog" },
             { href: "/help", label: "Help & Contact" },
-            { href: "/report-bug", label: "Report a Bug" },
           ].map(item => (
             <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
           ))}
+          <Link href="/report-bug" onClick={() => setMenu(null)} className={`flex items-center gap-2 py-1.5 px-3 rounded-lg transition font-semibold ${cm ? "text-red-600 bg-red-50 hover:bg-red-100" : "text-red-400 bg-red-500/10 hover:bg-red-500/20"}`}>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+            Report a Bug
+          </Link>
         </div>
       </div>
     )}
@@ -333,32 +409,105 @@ export default function Navbar({
       </div>
     )}
 
-    {/* Convertor section */}
-    <p className={`text-xs font-semibold tracking-wider uppercase px-2 ${cm ? "text-blue-600" : "text-blue-400"}`}>Convertor</p>
+    {/* Convertor – From PDF */}
+    <p className={`text-xs font-semibold tracking-wider uppercase px-2 ${cm ? "text-blue-600" : "text-blue-400"}`}>From PDF</p>
     <div className="grid grid-cols-2 gap-1 text-sm">
       {[
-        { href: "/convert/pdf-to-word", label: "PDF \u2192 Word" },
-        { href: "/convert/pdf-to-excel", label: "PDF \u2192 Excel" },
-        { href: "/convert/word-to-pdf", label: "Word \u2192 PDF" },
-        { href: "/convert/excel-to-pdf", label: "Excel \u2192 PDF" },
-        { href: "/convert/pdf-to-jpg", label: "PDF \u2192 JPG" },
-        { href: "/convert/jpg-to-pdf", label: "JPG \u2192 PDF" },
+        { href: "/convert/pdf-to-word", label: "PDF → Word" },
+        { href: "/convert/pdf-to-excel", label: "PDF → Excel" },
+        { href: "/convert/pdf-to-pptx", label: "PDF → PPTX" },
+        { href: "/convert/pdf-to-jpg", label: "PDF → JPG" },
+        { href: "/convert/pdf-to-png", label: "PDF → PNG" },
+        { href: "/convert/pdf-to-html", label: "PDF → HTML" },
+        { href: "/convert/pdf-to-txt", label: "PDF → TXT" },
+        { href: "/convert/pdf-to-csv", label: "PDF → CSV" },
+      ].map(item => (
+        <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
+      ))}
+    </div>
+    <p className={`text-xs font-semibold tracking-wider uppercase px-2 pt-2 ${cm ? "text-purple-600" : "text-purple-400"}`}>To PDF</p>
+    <div className="grid grid-cols-2 gap-1 text-sm">
+      {[
+        { href: "/convert/word-to-pdf", label: "Word → PDF" },
+        { href: "/convert/excel-to-pdf", label: "Excel → PDF" },
+        { href: "/convert/pptx-to-pdf", label: "PPTX → PDF" },
+        { href: "/convert/jpg-to-pdf", label: "JPG → PDF" },
+        { href: "/convert/png-to-pdf", label: "PNG → PDF" },
+        { href: "/convert/html-to-pdf", label: "HTML → PDF" },
+        { href: "/convert/txt-to-pdf", label: "TXT → PDF" },
+        { href: "/convert/csv-to-pdf", label: "CSV → PDF" },
+        { href: "/convert/markdown-to-pdf", label: "Markdown → PDF" },
+        { href: "/convert/image-to-pdf", label: "Image → PDF" },
+      ].map(item => (
+        <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
+      ))}
+    </div>
+    <p className={`text-xs font-semibold tracking-wider uppercase px-2 pt-2 ${cm ? "text-emerald-600" : "text-emerald-400"}`}>Word & Office</p>
+    <div className="grid grid-cols-2 gap-1 text-sm">
+      {[
+        { href: "/convert/word-to-excel", label: "Word → Excel" },
+        { href: "/convert/excel-to-word", label: "Excel → Word" },
+        { href: "/convert/word-to-pptx", label: "Word → PPTX" },
+        { href: "/convert/pptx-to-word", label: "PPTX → Word" },
+        { href: "/convert/word-to-html", label: "Word → HTML" },
+        { href: "/convert/html-to-word", label: "HTML → Word" },
+        { href: "/convert/word-to-txt", label: "Word → TXT" },
+        { href: "/convert/txt-to-word", label: "TXT → Word" },
+        { href: "/convert/word-to-jpg", label: "Word → JPG" },
+        { href: "/convert/word-to-png", label: "Word → PNG" },
+        { href: "/convert/jpg-to-word", label: "JPG → Word" },
+        { href: "/convert/png-to-word", label: "PNG → Word" },
+        { href: "/convert/excel-to-csv", label: "Excel → CSV" },
+        { href: "/convert/csv-to-excel", label: "CSV → Excel" },
+        { href: "/convert/excel-to-html", label: "Excel → HTML" },
+        { href: "/convert/html-to-excel", label: "HTML → Excel" },
+        { href: "/convert/excel-to-txt", label: "Excel → TXT" },
+        { href: "/convert/pptx-to-html", label: "PPTX → HTML" },
       ].map(item => (
         <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
       ))}
     </div>
 
-    {/* Tools section */}
-    <p className={`text-xs font-semibold tracking-wider uppercase px-2 pt-2 ${cm ? "text-purple-600" : "text-purple-400"}`}>Tools</p>
+    {/* PDF Tools section */}
+    <p className={`text-xs font-semibold tracking-wider uppercase px-2 pt-2 ${cm ? "text-red-600" : "text-red-400"}`}>PDF Tools</p>
     <div className="grid grid-cols-2 gap-1 text-sm">
       {[
+        { href: "/tools/pdf-viewer", label: "PDF Viewer" },
         { href: "/tools/pdf-editor", label: "PDF Editor" },
+        { href: "/tools/pdf-creator", label: "PDF Creator" },
+        { href: "/tools/split-pdf", label: "Split PDF" },
+        { href: "/tools/merge-pdf", label: "Merge PDF" },
+        { href: "/tools/rotate-pdf", label: "Rotate PDF" },
+        { href: "/tools/compress", label: "Compress" },
+        { href: "/tools/watermark", label: "Add Watermark" },
+        { href: "/tools/encrypt-pdf", label: "Encrypt / Decrypt" },
+        { href: "/tools/extract-images", label: "Extract Images" },
+      ].map(item => (
+        <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
+      ))}
+    </div>
+
+    {/* Editors section */}
+    <p className={`text-xs font-semibold tracking-wider uppercase px-2 pt-2 ${cm ? "text-purple-600" : "text-purple-400"}`}>Editors</p>
+    <div className="grid grid-cols-2 gap-1 text-sm">
+      {[
         { href: "/tools/word-editor", label: "Word Editor" },
         { href: "/tools/excel-editor", label: "Excel Editor" },
         { href: "/tools/powerpoint-editor", label: "PowerPoint" },
         { href: "/tools/txt-editor", label: "TXT Editor" },
         { href: "/tools/csv-editor", label: "CSV Editor" },
         { href: "/tools/word-viewer", label: "Word Viewer" },
+      ].map(item => (
+        <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
+      ))}
+    </div>
+
+    {/* Utilities section */}
+    <p className={`text-xs font-semibold tracking-wider uppercase px-2 pt-2 ${cm ? "text-teal-600" : "text-teal-400"}`}>Utilities</p>
+    <div className="grid grid-cols-2 gap-1 text-sm">
+      {[
+        { href: "/tools/ocr", label: "OCR (Image → Text)" },
+        { href: "/tools/remove-bg", label: "Remove Background" },
       ].map(item => (
         <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
       ))}
@@ -373,10 +522,13 @@ export default function Navbar({
         { href: "/blog", label: "Blog" },
         { href: "/cloud", label: "My Cloud" },
         { href: "/help", label: "Help & Contact" },
-        { href: "/report-bug", label: "Report a Bug" },
       ].map(item => (
         <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
       ))}
+      <Link href="/report-bug" onClick={() => setMobileOpen(false)} className={`flex items-center gap-2 py-2 px-3 rounded-lg transition text-[13px] font-semibold ${cm ? "text-red-600 bg-red-50" : "text-red-400 bg-red-500/10"}`}>
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+        Report a Bug
+      </Link>
     </div>
 
     {/* Theme + Language row */}

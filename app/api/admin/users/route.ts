@@ -17,6 +17,20 @@ export async function GET() {
       .select("id, name, email, role, plan, email_verified, created_at")
       .order("created_at", { ascending: false })
 
+    // Get online user IDs from active_visitors (last 2 minutes)
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+    let onlineUserIds: Set<string> = new Set()
+    try {
+      const { data: onlineRows } = await supabaseAdmin
+        .from("active_visitors")
+        .select("user_id")
+        .gte("last_ping", twoMinAgo)
+        .not("user_id", "is", null)
+      for (const r of onlineRows || []) {
+        if (r.user_id) onlineUserIds.add(r.user_id)
+      }
+    } catch { /* ignore if table doesn't exist */ }
+
     // Get file counts per user
     const result = await Promise.all(
       (users || []).map(async (u) => {
@@ -30,6 +44,7 @@ export async function GET() {
           plan: u.plan,
           emailVerified: u.email_verified,
           createdAt: u.created_at,
+          isOnline: onlineUserIds.has(u.id),
           _count: { files: count || 0 },
         }
       })

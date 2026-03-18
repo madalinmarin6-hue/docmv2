@@ -86,12 +86,36 @@ export default function CompressPage() {
     try {
       if (isPdf(file)) {
         const buffer = await file.arrayBuffer()
-        const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
-        const newDoc = await PDFDocument.create()
-        const pages = await newDoc.copyPages(srcDoc, srcDoc.getPageIndices())
-        for (const page of pages) newDoc.addPage(page)
+        const pdfjsLib = await import("pdfjs-dist")
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+        const srcPdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
 
-        const bytes = await newDoc.save()
+        const dest = await PDFDocument.create()
+        const jpegQuality = quality === "low" ? 0.4 : quality === "medium" ? 0.65 : quality === "high" ? 0.85 : customQuality / 100
+        const pdfScale = quality === "low" ? 1 : quality === "medium" ? 1.5 : quality === "high" ? 2 : 1.5
+
+        for (let i = 0; i < srcPdf.numPages; i++) {
+          setStatusMsg(`Compressing page ${i + 1} of ${srcPdf.numPages}...`)
+          const page = await srcPdf.getPage(i + 1)
+          const vp = page.getViewport({ scale: pdfScale })
+          const canvas = document.createElement("canvas")
+          canvas.width = vp.width; canvas.height = vp.height
+          const ctx = canvas.getContext("2d")!
+          ctx.fillStyle = "#ffffff"
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          await page.render({ canvasContext: ctx, viewport: vp }).promise
+
+          const imgBlob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/jpeg", jpegQuality))
+          if (imgBlob) {
+            const imgBytes = new Uint8Array(await imgBlob.arrayBuffer())
+            const img = await dest.embedJpg(imgBytes)
+            const origVp = page.getViewport({ scale: 1 })
+            const pdfPage = dest.addPage([origVp.width, origVp.height])
+            pdfPage.drawImage(img, { x: 0, y: 0, width: origVp.width, height: origVp.height })
+          }
+        }
+
+        const bytes = await dest.save()
         const blob = new Blob([bytes as BlobPart], { type: "application/pdf" })
         setResult({ blob, name: file.name.replace(".pdf", "_compressed.pdf"), originalSize: file.size, newSize: blob.size })
       } else if (isImage(file)) {

@@ -27,6 +27,7 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
   const [progress, setProgress] = useState(0)
   const [resultUrl, setResultUrl] = useState("")
   const [resultName, setResultName] = useState("")
+  const [showPreview, setShowPreview] = useState(false)
 
   const simulateProgress = () => {
     setProgress(0)
@@ -66,42 +67,91 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
       const baseName = file.name.replace(/\.[^.]+$/, "")
 
       if (fromFormat === "PDF" && toFormat === "Word") {
-        // ── PDF → Word: use pdfjs-dist for proper text extraction ──
-        const pdfjsLib = await import("pdfjs-dist")
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
-        const pdfData = new Uint8Array(buffer)
-        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
-        const pageHtmlParts: string[] = []
-        for (let p = 1; p <= pdf.numPages; p++) {
-          const page = await pdf.getPage(p)
-          const tc = await page.getTextContent()
-          let prevY: number | null = null
-          let lineText = ""
-          const lines: string[] = []
-          for (const item of tc.items) {
-            if (!("str" in item)) continue
-            const it = item as { str: string; transform: number[] }
-            const y = Math.round(it.transform[5])
-            if (prevY !== null && Math.abs(y - prevY) > 3) {
-              lines.push(lineText)
-              lineText = ""
-            }
-            lineText += (lineText && prevY !== null && Math.abs(y - (prevY ?? 0)) <= 3 ? " " : "") + it.str
-            prevY = y
-          }
-          if (lineText) lines.push(lineText)
-          if (pdf.numPages > 1) pageHtmlParts.push(`<h2 style="color:#2b579a;border-bottom:1px solid #ccc;padding-bottom:4px;">Page ${p}</h2>`)
-          pageHtmlParts.push(lines.map(l => `<p>${l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`).join("\n"))
-          if (p < pdf.numPages) pageHtmlParts.push(`<br style="page-break-after:always;" />`)
+        // ── PDF → Word: PyMuPDF WASM engine (high fidelity) with fallback ──
+        try {
+          setProgress(10)
+          const { loadPyMuPDF } = await import("@/lib/pymupdf-loader")
+          const pymupdf = await loadPyMuPDF()
+          setProgress(40)
+          const docxBlob = await pymupdf.pdfToDocx(file)
+          setProgress(90)
+          blob = docxBlob
+          outputName = baseName + ".docx"
+        } catch (pyErr) {
+          console.warn("[PyMuPDF] fallback to pdfToWord:", pyErr)
+          const { convertPdfToWord } = await import("@/lib/converters/pdfToWord")
+          const result = await convertPdfToWord(buffer, file.name, (pct) => setProgress(Math.min(95, pct)))
+          blob = result.blob
+          outputName = result.name
         }
-        const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Calibri,sans-serif;margin:2cm;line-height:1.6;}h1{color:#1a1a2e;}h2{color:#2b579a;margin-top:1.5em;}p{margin:0.3em 0;}</style></head><body><h1>${baseName}</h1><p style="color:#888;font-size:10pt;">Converted from PDF (${pdf.numPages} page${pdf.numPages > 1 ? "s" : ""})</p><hr/>${pageHtmlParts.join("\n")}</body></html>`
-        blob = new Blob(["\ufeff" + html], { type: "application/msword" })
-        outputName = baseName + ".doc"
+
+      } else if (toFormat === "PDF" && (fromFormat === "Word" || file.name.toLowerCase().endsWith(".docx") || file.name.toLowerCase().endsWith(".doc") || file.name.toLowerCase().endsWith(".odt") || file.name.toLowerCase().endsWith(".rtf"))) {
+        // ── Word/Doc/ODT/RTF → PDF: LibreOffice WASM engine with fallback ──
+        try {
+          setProgress(5)
+          const { convertToPdf, initializeConverter } = await import("@/lib/libreoffice-converter")
+          await initializeConverter((p) => setProgress(Math.min(70, Math.round(p.percent * 0.7))))
+          setProgress(70)
+          blob = await convertToPdf(file)
+          setProgress(95)
+          outputName = baseName + ".pdf"
+        } catch (loErr) {
+          console.warn("[LibreOffice] fallback to wordToPdf:", loErr)
+          const { convertWordToPdf } = await import("@/lib/converters/wordToPdf")
+          const result = await convertWordToPdf(buffer, file.name, (pct) => setProgress(Math.min(95, pct)))
+          blob = result.blob
+          outputName = result.name
+        }
+
+      } else if (toFormat === "PDF" && (fromFormat === "Excel" || file.name.toLowerCase().match(/\.(xlsx?|csv|ods)$/))) {
+        // ── Excel/CSV/ODS → PDF: LibreOffice WASM engine with fallback ──
+        try {
+          setProgress(5)
+          const { convertToPdf, initializeConverter } = await import("@/lib/libreoffice-converter")
+          await initializeConverter((p) => setProgress(Math.min(70, Math.round(p.percent * 0.7))))
+          setProgress(70)
+          blob = await convertToPdf(file)
+          setProgress(95)
+          outputName = baseName + ".pdf"
+        } catch {
+          // Fallback: basic text rendering
+          const pdfDoc = await PDFDocument.create()
+          let font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+          const text = await file.text()
+          const lines = text.split("\n")
+          const linesPerPage = 45
+          for (let i = 0; i < lines.length; i += linesPerPage) {
+            const page = pdfDoc.addPage([595, 842])
+            let y = 800
+            for (const line of lines.slice(i, i + linesPerPage)) {
+              const safeLine = line.replace(/[^\x20-\x7E\u00C0-\u024F]/g, " ").substring(0, 100)
+              try { page.drawText(safeLine, { x: 50, y, size: 10, font, color: rgb(0, 0, 0) }) } catch {}
+              y -= 14
+            }
+          }
+          const pdfBytes = await pdfDoc.save()
+          blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" })
+          outputName = baseName + ".pdf"
+        }
+
+      } else if (toFormat === "PDF" && (fromFormat === "PPTX" || file.name.toLowerCase().match(/\.(pptx?|odp)$/))) {
+        // ── PowerPoint → PDF: LibreOffice WASM ──
+        try {
+          setProgress(5)
+          const { convertToPdf, initializeConverter } = await import("@/lib/libreoffice-converter")
+          await initializeConverter((p) => setProgress(Math.min(70, Math.round(p.percent * 0.7))))
+          setProgress(70)
+          blob = await convertToPdf(file)
+          setProgress(95)
+          outputName = baseName + ".pdf"
+        } catch {
+          throw new Error("PowerPoint to PDF conversion failed")
+        }
 
       } else if (toFormat === "PDF") {
+        // ── Other formats → PDF (images, text, HTML, etc.) ──
         const pdfDoc = await PDFDocument.create()
 
-        // Try to load a Unicode-capable font, fall back to Helvetica
         let font = await pdfDoc.embedFont(StandardFonts.Helvetica)
         let boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
         let useUnicode = false
@@ -113,33 +163,105 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
           useUnicode = true
         } catch { /* fall back to standard fonts */ }
 
-        if (fromFormat === "JPG" || fromFormat === "PNG") {
+        if (fromFormat === "JPG" || fromFormat === "PNG" || fromFormat === "Image" || file.type?.startsWith("image/")) {
+          // Handle all image types → PDF
           const imgBytes = new Uint8Array(buffer)
-          const image = fromFormat === "JPG"
-            ? await pdfDoc.embedJpg(imgBytes)
-            : await pdfDoc.embedPng(imgBytes)
-          const { width, height } = image.scaleToFit(595, 842)
-          const page = pdfDoc.addPage([595, 842])
-          page.drawImage(image, {
-            x: (595 - width) / 2,
-            y: (842 - height) / 2,
-            width,
-            height,
-          })
+          const fname = file.name.toLowerCase()
+          let image
+          if (fname.endsWith(".jpg") || fname.endsWith(".jpeg") || fromFormat === "JPG") {
+            image = await pdfDoc.embedJpg(imgBytes)
+          } else if (fname.endsWith(".png") || fromFormat === "PNG") {
+            image = await pdfDoc.embedPng(imgBytes)
+          } else {
+            // For other formats (webp, bmp, gif, svg, tiff), render to canvas first then embed as JPEG
+            const imgEl = new (globalThis as any).Image() as HTMLImageElement
+            const imgUrl = URL.createObjectURL(file)
+            await new Promise<void>((resolve) => { imgEl.onload = () => resolve(); imgEl.onerror = () => resolve(); imgEl.src = imgUrl })
+            const canvas = document.createElement("canvas")
+            canvas.width = imgEl.naturalWidth || 800; canvas.height = imgEl.naturalHeight || 600
+            const ctx = canvas.getContext("2d")!
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height)
+            ctx.drawImage(imgEl, 0, 0)
+            URL.revokeObjectURL(imgUrl)
+            const jpegBlob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/jpeg", 0.92))
+            if (jpegBlob) {
+              const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer())
+              image = await pdfDoc.embedJpg(jpegBytes)
+            }
+          }
+          if (image) {
+            const { width, height } = image.scaleToFit(595, 842)
+            const page = pdfDoc.addPage([595, 842])
+            page.drawImage(image, {
+              x: (595 - width) / 2,
+              y: (842 - height) / 2,
+              width,
+              height,
+            })
+          }
+        } else if (fromFormat === "Markdown" || file.name.toLowerCase().match(/\.(md|markdown)$/)) {
+          // Markdown → PDF using marked → html2canvas → jsPDF
+          const mdText = await file.text()
+          const { marked } = await import("marked")
+          const htmlContent = await marked(mdText)
+          const { jsPDF } = await import("jspdf")
+          const html2canvas = (await import("html2canvas")).default
+          const container = document.createElement("div")
+          container.style.cssText = "position:absolute;left:-9999px;width:794px;padding:40px;background:#fff;color:#000;font-family:system-ui,sans-serif;line-height:1.6"
+          container.innerHTML = `<style>h1,h2,h3{color:#1a1a2e;margin-top:1em}code{background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:0.9em}pre{background:#1a1a2e;color:#e0e0e0;padding:16px;border-radius:8px;overflow-x:auto}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px}blockquote{border-left:4px solid #ccc;margin-left:0;padding-left:16px;color:#555}</style>${htmlContent}`
+          document.body.appendChild(container)
+          await new Promise(r => setTimeout(r, 500))
+          const canvas = await html2canvas(container, { scale: 2, useCORS: true })
+          document.body.removeChild(container)
+          const imgW = 210, imgH = (canvas.height * imgW) / canvas.width
+          const pdf = new jsPDF({ unit: "mm", format: "a4" })
+          let y = 0
+          while (y < imgH) {
+            if (y > 0) pdf.addPage()
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, -y, imgW, imgH)
+            y += 297
+          }
+          const pdfBlob = pdf.output("blob")
+          clearInterval(interval)
+          setProgress(100)
+          const url = URL.createObjectURL(pdfBlob)
+          setResultUrl(url)
+          setResultName(baseName + ".pdf")
+          setStatus("done")
+          saveToCloud(pdfBlob, baseName + ".pdf", `convert-${fromFormat.toLowerCase()}-${toFormat.toLowerCase()}`)
+          return
+        } else if (fromFormat === "HTML" || file.name.toLowerCase().endsWith(".html") || file.name.toLowerCase().endsWith(".htm")) {
+          // HTML → PDF using jsPDF + html2canvas
+          const htmlContent = await file.text()
+          const { jsPDF } = await import("jspdf")
+          const html2canvas = (await import("html2canvas")).default
+          const container = document.createElement("div")
+          container.style.cssText = "position:absolute;left:-9999px;width:794px;padding:40px;background:#fff;color:#000"
+          container.innerHTML = htmlContent
+          document.body.appendChild(container)
+          await new Promise(r => setTimeout(r, 500))
+          const canvas = await html2canvas(container, { scale: 2, useCORS: true })
+          document.body.removeChild(container)
+          const imgW = 210, imgH = (canvas.height * imgW) / canvas.width
+          const pdf = new jsPDF({ unit: "mm", format: "a4" })
+          let y = 0
+          while (y < imgH) {
+            if (y > 0) pdf.addPage()
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, -y, imgW, imgH)
+            y += 297
+          }
+          const pdfBlob = pdf.output("blob")
+          clearInterval(interval)
+          setProgress(100)
+          const url = URL.createObjectURL(pdfBlob)
+          setResultUrl(url)
+          setResultName(baseName + ".pdf")
+          setStatus("done")
+          saveToCloud(pdfBlob, baseName + ".pdf", `convert-${fromFormat.toLowerCase()}-${toFormat.toLowerCase()}`)
+          return
         } else {
           let text: string
-          const ext = file.name.toLowerCase()
-          if (ext.endsWith(".docx") || ext.endsWith(".doc")) {
-            try {
-              const mammoth = (await import("mammoth")).default
-              const result = await mammoth.extractRawText({ arrayBuffer: buffer })
-              text = result.value || ""
-            } catch {
-              text = await file.text()
-            }
-          } else {
-            text = await file.text()
-          }
+          try { text = await file.text() } catch { text = "" }
           const lines = text.split("\n")
           const linesPerPage = 45
           for (let i = 0; i < lines.length; i += linesPerPage) {
@@ -171,24 +293,51 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
         outputName = baseName + ".pdf"
 
       } else if (fromFormat === "PDF" && (toFormat === "JPG" || toFormat === "PNG")) {
-        // Render PDF page to canvas using pdfjs-dist
+        // ── PDF → JPG/PNG: render ALL pages ──
         const pdfjsLib = await import("pdfjs-dist")
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
         const pdfData = new Uint8Array(buffer)
         const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
-        const page = await pdf.getPage(1)
         const scale = 2
-        const viewport = page.getViewport({ scale })
-        const canvas = document.createElement("canvas")
-        canvas.width = viewport.width
-        canvas.height = viewport.height
-        const ctx = canvas.getContext("2d")!
-        await page.render({ canvasContext: ctx, viewport }).promise
         const mimeType = toFormat === "JPG" ? "image/jpeg" : "image/png"
-        const dataUrl = canvas.toDataURL(mimeType, 0.95)
-        const res = await fetch(dataUrl)
-        blob = await res.blob()
-        outputName = baseName + (toFormat === "JPG" ? ".jpg" : ".png")
+        const ext = toFormat === "JPG" ? ".jpg" : ".png"
+
+        if (pdf.numPages === 1) {
+          const page = await pdf.getPage(1)
+          const viewport = page.getViewport({ scale })
+          const canvas = document.createElement("canvas")
+          canvas.width = viewport.width; canvas.height = viewport.height
+          await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise
+          const dataUrl = canvas.toDataURL(mimeType, 0.92)
+          const res = await fetch(dataUrl)
+          blob = await res.blob()
+          outputName = baseName + ext
+        } else {
+          // Multiple pages: download each page individually
+          for (let i = 1; i <= pdf.numPages; i++) {
+            setProgress(Math.round((i / pdf.numPages) * 90))
+            const page = await pdf.getPage(i)
+            const viewport = page.getViewport({ scale })
+            const canvas = document.createElement("canvas")
+            canvas.width = viewport.width; canvas.height = viewport.height
+            await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise
+            const dataUrl = canvas.toDataURL(mimeType, 0.92)
+            const a = document.createElement("a")
+            a.href = dataUrl
+            a.download = `${baseName}_page${i}${ext}`
+            a.click()
+            await new Promise(r => setTimeout(r, 200))
+          }
+          // Set result to last page for preview
+          const lastPage = await pdf.getPage(pdf.numPages)
+          const vp = lastPage.getViewport({ scale })
+          const c = document.createElement("canvas")
+          c.width = vp.width; c.height = vp.height
+          await lastPage.render({ canvasContext: c.getContext("2d")!, viewport: vp }).promise
+          const res = await fetch(c.toDataURL(mimeType, 0.92))
+          blob = await res.blob()
+          outputName = `${baseName}_${pdf.numPages}pages${ext}`
+        }
 
       } else if (fromFormat === "PDF") {
         // ── PDF → other formats: use pdfjs-dist for text extraction ──
@@ -259,8 +408,103 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
           outputName = baseName + "." + toFormat.toLowerCase()
         }
 
+      } else if ((fromFormat === "Word" || file.name.toLowerCase().endsWith(".docx") || file.name.toLowerCase().endsWith(".doc")) && toFormat === "HTML") {
+        // ── Word → HTML: rich HTML with mammoth ──
+        const mammoth = (await import("mammoth")).default
+        const result = await mammoth.convertToHtml(
+          { arrayBuffer: buffer },
+          { convertImage: mammoth.images.imgElement((image: any) => image.read("base64").then((buf: string) => ({ src: `data:${image.contentType};base64,${buf}` }))) }
+        )
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${baseName}</title><style>body{font-family:Calibri,system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.6;color:#333;}h1,h2,h3{color:#1a1a2e;}table{border-collapse:collapse;width:100%;margin:1em 0;}td,th{border:1px solid #ccc;padding:8px;}img{max-width:100%;}</style></head><body>${result.value}</body></html>`
+        blob = new Blob([html], { type: "text/html" })
+        outputName = baseName + ".html"
+
+      } else if ((fromFormat === "Word" || file.name.toLowerCase().endsWith(".docx") || file.name.toLowerCase().endsWith(".doc")) && (toFormat === "JPG" || toFormat === "PNG")) {
+        // ── Word → JPG/PNG: mammoth → HTML → canvas → image ──
+        const mammoth = (await import("mammoth")).default
+        const result = await mammoth.convertToHtml({ arrayBuffer: buffer })
+        const iframe = document.createElement("iframe")
+        iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;"
+        document.body.appendChild(iframe)
+        const doc = iframe.contentDocument!
+        doc.open()
+        doc.write(`<!DOCTYPE html><html><head><style>body{font-family:Calibri,sans-serif;margin:40px;line-height:1.6;color:#000;background:#fff;}h1,h2,h3{color:#1a1a2e;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:6px;}img{max-width:100%;}</style></head><body>${result.value}</body></html>`)
+        doc.close()
+        await new Promise(r => setTimeout(r, 500))
+        const { default: html2canvas } = await import("html2canvas").catch(() => ({ default: null }))
+        if (html2canvas) {
+          const canvas = await html2canvas(doc.body, { scale: 2, backgroundColor: "#ffffff", width: 794, windowWidth: 794 })
+          const mimeType = toFormat === "JPG" ? "image/jpeg" : "image/png"
+          const dataUrl = canvas.toDataURL(mimeType, 0.95)
+          const res = await fetch(dataUrl)
+          blob = await res.blob()
+        } else {
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="794" height="1123"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Calibri,sans-serif;padding:40px;background:#fff;">${result.value.replace(/&/g, "&amp;")}</div></foreignObject></svg>`
+          blob = new Blob([svg], { type: "image/svg+xml" })
+        }
+        document.body.removeChild(iframe)
+        outputName = baseName + (toFormat === "JPG" ? ".jpg" : ".png")
+
+      } else if ((fromFormat === "JPG" || fromFormat === "PNG") && toFormat === "Word") {
+        // ── JPG/PNG → Word: embed image into .docx ──
+        const { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType, Header, Footer, PageNumber, convertInchesToTwip } = await import("docx")
+        const imgData = new Uint8Array(buffer)
+        const img = new Image()
+        const imgUrl = URL.createObjectURL(file)
+        await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); img.src = imgUrl })
+        const maxW = 570; const scale = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1
+        const w = Math.round(img.naturalWidth * scale); const h = Math.round(img.naturalHeight * scale)
+        URL.revokeObjectURL(imgUrl)
+        const doc = new Document({
+          creator: "DocFlow Converter", title: baseName,
+          sections: [{
+            properties: { page: { size: { width: convertInchesToTwip(8.27), height: convertInchesToTwip(11.69) }, margin: { top: convertInchesToTwip(1), bottom: convertInchesToTwip(1), left: convertInchesToTwip(1), right: convertInchesToTwip(1) } } },
+            headers: { default: new Header({ children: [new Paragraph({ children: [new TextRun({ text: baseName, size: 16, color: "888888", italics: true })], alignment: AlignmentType.RIGHT })] }) },
+            footers: { default: new Footer({ children: [new Paragraph({ children: [new TextRun({ text: "Page ", size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "888888" })], alignment: AlignmentType.CENTER })] }) },
+            children: [
+              new Paragraph({ children: [new TextRun({ text: baseName, bold: true, size: 40, color: "1a1a2e" })], heading: HeadingLevel.HEADING_1, spacing: { after: 200 } }),
+              new Paragraph({ children: [new ImageRun({ data: imgData, transformation: { width: w, height: h }, type: fromFormat === "JPG" ? "jpg" : "png" })], spacing: { before: 200 } }),
+            ],
+          }],
+        })
+        blob = await Packer.toBlob(doc)
+        outputName = baseName + ".docx"
+
+      } else if (fromFormat === "Excel" && toFormat === "CSV") {
+        // ── Excel → CSV ──
+        const wb = XLSX.read(buffer, { type: "array" })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const csv = XLSX.utils.sheet_to_csv(ws)
+        blob = new Blob([csv], { type: "text/csv" })
+        outputName = baseName + ".csv"
+
+      } else if (fromFormat === "CSV" && toFormat === "Excel") {
+        // ── CSV → Excel ──
+        const csvText = await file.text()
+        const wb = XLSX.read(csvText, { type: "string" })
+        const xlsxBuf = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+        blob = new Blob([xlsxBuf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+        outputName = baseName + ".xlsx"
+
+      } else if (fromFormat === "Excel" && toFormat === "HTML") {
+        // ── Excel → HTML (rich table) ──
+        const wb = XLSX.read(buffer, { type: "array" })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const tableHtml = XLSX.utils.sheet_to_html(ws)
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${baseName}</title><style>body{font-family:system-ui,sans-serif;margin:40px;color:#333;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ccc;padding:8px 12px;text-align:left;}th{background:#f0f0f0;font-weight:600;}tr:nth-child(even){background:#fafafa;}h1{color:#1a1a2e;}</style></head><body><h1>${baseName}</h1>${tableHtml}</body></html>`
+        blob = new Blob([html], { type: "text/html" })
+        outputName = baseName + ".html"
+
+      } else if (fromFormat === "HTML" && toFormat === "Excel") {
+        // ── HTML → Excel (parse tables) ──
+        const htmlText = await file.text()
+        const wb = XLSX.read(htmlText, { type: "string" })
+        const xlsxBuf = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+        blob = new Blob([xlsxBuf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+        outputName = baseName + ".xlsx"
+
       } else {
-        // ── Non-PDF source → non-PDF target (e.g. TXT→Word, Excel→HTML) ──
+        // ── Generic non-PDF source → non-PDF target ──
         let textContent: string
         const ext = file.name.toLowerCase()
         if (ext.endsWith(".docx") || ext.endsWith(".doc")) {
@@ -268,17 +512,36 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
             const mammoth = (await import("mammoth")).default
             const result = await mammoth.extractRawText({ arrayBuffer: buffer })
             textContent = result.value || ""
-          } catch {
-            textContent = await file.text()
-          }
+          } catch { textContent = await file.text() }
+        } else if (ext.endsWith(".xlsx") || ext.endsWith(".xls")) {
+          try {
+            const wb = XLSX.read(buffer, { type: "array" })
+            const ws = wb.Sheets[wb.SheetNames[0]]
+            textContent = XLSX.utils.sheet_to_csv(ws)
+          } catch { textContent = await file.text() }
         } else {
           try { textContent = await file.text() } catch { textContent = `[Binary content from ${file.name}]` }
         }
 
         if (toFormat === "Word") {
-          const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>body{font-family:Calibri,sans-serif;margin:2cm;line-height:1.6;}h1{color:#1a1a2e;}p.meta{color:#888;font-size:10pt;}</style></head><body><h1>${baseName}</h1><p class="meta">Converted from ${fromFormat}</p>${textContent.split("\n").map(l => `<p>${l.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`).join("")}</body></html>`
-          blob = new Blob(["\ufeff" + html], { type: "application/msword" })
-          outputName = baseName + ".doc"
+          const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Header, Footer, PageNumber, convertInchesToTwip } = await import("docx")
+          const lines = textContent.split("\n")
+          const paragraphs = [
+            new Paragraph({ children: [new TextRun({ text: baseName, bold: true, size: 40, color: "1a1a2e" })], heading: HeadingLevel.HEADING_1, spacing: { after: 200 } }),
+            new Paragraph({ children: [new TextRun({ text: `Converted from ${fromFormat}`, size: 18, color: "888888", italics: true })], spacing: { after: 300 } }),
+            ...lines.map(l => new Paragraph({ children: [new TextRun({ text: l || " ", size: 22, font: "Calibri" })], spacing: { after: 40 } })),
+          ]
+          const doc = new Document({
+            creator: "DocFlow Converter", title: baseName,
+            sections: [{
+              properties: { page: { size: { width: convertInchesToTwip(8.27), height: convertInchesToTwip(11.69) }, margin: { top: convertInchesToTwip(1), bottom: convertInchesToTwip(1), left: convertInchesToTwip(1), right: convertInchesToTwip(1) } } },
+              headers: { default: new Header({ children: [new Paragraph({ children: [new TextRun({ text: baseName, size: 16, color: "888888", italics: true })], alignment: AlignmentType.RIGHT })] }) },
+              footers: { default: new Footer({ children: [new Paragraph({ children: [new TextRun({ text: "Page ", size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "888888" })], alignment: AlignmentType.CENTER })] }) },
+              children: paragraphs,
+            }],
+          })
+          blob = await Packer.toBlob(doc)
+          outputName = baseName + ".docx"
         } else if (toFormat === "Excel") {
           const lines = textContent.split("\n").map(line => line.split(/[,\t]/).map(cell => cell.trim()))
           const ws = XLSX.utils.aoa_to_sheet(lines)
@@ -307,6 +570,9 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
         } else if (toFormat === "TXT") {
           blob = new Blob([textContent], { type: "text/plain" })
           outputName = baseName + ".txt"
+        } else if (toFormat === "CSV") {
+          blob = new Blob([textContent], { type: "text/csv" })
+          outputName = baseName + ".csv"
         } else {
           blob = new Blob([textContent], { type: "text/plain" })
           outputName = baseName + "." + toFormat.toLowerCase()
@@ -451,7 +717,14 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
               <p className="font-semibold text-emerald-300">Conversion Complete!</p>
               <p className="text-sm text-white/40 mt-1">{resultName}</p>
             </div>
-            <div className="flex justify-center gap-3">
+            <div className="flex justify-center gap-3 flex-wrap">
+              <button
+                onClick={() => setShowPreview(v => !v)}
+                className={`px-6 py-3 rounded-xl text-sm font-semibold hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2 ${showPreview ? "bg-gradient-to-r from-indigo-600 to-blue-600 shadow-indigo-500/20" : "bg-gradient-to-r from-blue-500 to-indigo-500 shadow-blue-500/20"}`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                {showPreview ? "Hide Preview" : "Preview"}
+              </button>
               <button
                 onClick={handleDownload}
                 className="px-8 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
@@ -465,6 +738,22 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
                 Convert Another
               </button>
             </div>
+            {showPreview && resultUrl && (
+              <div className="mt-4 rounded-2xl border border-white/10 overflow-hidden bg-white/5">
+                {(resultName.endsWith(".jpg") || resultName.endsWith(".jpeg") || resultName.endsWith(".png") || resultName.endsWith(".svg") || resultName.endsWith(".webp") || resultName.endsWith(".bmp")) ? (
+                  <img src={resultUrl} alt={resultName} className="max-w-full max-h-[60vh] mx-auto object-contain p-4" />
+                ) : resultName.endsWith(".pdf") || resultName.endsWith(".html") ? (
+                  <iframe src={resultUrl} className="w-full h-[60vh]" title="Preview" />
+                ) : resultName.endsWith(".txt") || resultName.endsWith(".csv") || resultName.endsWith(".md") ? (
+                  <iframe src={resultUrl} className="w-full h-[50vh] bg-white" title="Preview" />
+                ) : (
+                  <div className="p-8 text-center text-white/40">
+                    <p className="text-sm">Preview not available for this file type.</p>
+                    <button onClick={() => { if (resultUrl) window.open(resultUrl, "_blank") }} className="mt-3 px-4 py-2 rounded-lg bg-white/10 text-white/60 text-xs hover:bg-white/15 transition">Open in new tab</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
         )}
