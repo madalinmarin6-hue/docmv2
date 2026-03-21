@@ -2,10 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useApp } from "@/components/AppContext"
 import { usePinnedTools } from "@/lib/usePinnedTools"
+import { useToolOrder, applySectionOrder, SectionOrder } from "@/lib/useToolOrder"
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 const convertIcon = "M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
 
@@ -17,8 +21,7 @@ items: [
 { href: "/tools/word-viewer", label: "Word Viewer", icon: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" },
 { href: "/tools/excel-viewer", label: "Excel Viewer", icon: "M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625" },
 { href: "/tools/pptx-viewer", label: "PowerPoint Viewer", icon: "M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3" },
-{ href: "/tools/jpg-viewer", label: "JPG Viewer", icon: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" },
-{ href: "/tools/png-viewer", label: "PNG Viewer", icon: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" },
+{ href: "/tools/image-viewer", label: "Image Viewer", icon: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 002.25-2.25V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" },
 ]
 },
 {
@@ -106,6 +109,71 @@ items: [
 }
 ]
 
+function LimitBlock({ classicMode }: { classicMode: boolean }) {
+  const [cd, setCd] = useState("")
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date()
+      const reset = new Date(now)
+      reset.setHours(8, 0, 0, 0)
+      if (now >= reset) reset.setDate(reset.getDate() + 1)
+      const diff = reset.getTime() - now.getTime()
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCd(`${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`)
+    }
+    tick()
+    const iv = setInterval(tick, 1000)
+    return () => clearInterval(iv)
+  }, [])
+  const cm = classicMode
+  return (
+    <div className={`p-8 rounded-2xl border text-center ${cm ? "bg-red-50 border-red-200" : "bg-red-500/10 border-red-400/20"}`}>
+      <svg className={`w-12 h-12 mx-auto mb-4 ${cm ? "text-red-400" : "text-red-400/60"}`} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+      <p className={`text-lg font-bold ${cm ? "text-red-700" : "text-red-400"}`}>Daily edit limit reached (0/10)</p>
+      <p className={`text-sm mt-2 ${cm ? "text-red-500" : "text-red-400/60"}`}>You've used all your free edits for today. Upgrade for unlimited access or watch ads to earn a free edit.</p>
+      {cd && <p className={`text-sm mt-3 font-mono ${cm ? "text-red-400" : "text-red-300/50"}`}>⏳ Resets in {cd} (at 08:00)</p>}
+      <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">
+        <Link href="/dashboard#upgrade" className="px-6 py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-amber-500/20">⭐ Get Premium — Unlimited & No Ads</Link>
+        <Link href="/dashboard#ads" className="px-6 py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-500/20">🎬 Watch Ads — +1 Free Edit</Link>
+      </div>
+    </div>
+  )
+}
+
+function SortableSectionHeader({ id, label, classicMode }: { id: string; label: string; classicMode: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}
+      className={`text-[10px] font-bold tracking-widest uppercase mb-2 px-3 flex items-center gap-1.5 cursor-grab active:cursor-grabbing ${classicMode ? "text-gray-400" : "text-white/30"}`}>
+      <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+      {label}
+    </div>
+  )
+}
+
+function SortableToolItem({ id, item, active: isActive, classicMode, onPin }: { id: string; item: { href: string; label: string; icon: string }; active: boolean; classicMode: boolean; onPin: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center mb-0.5 group">
+      <div {...attributes} {...listeners} className={`w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing flex-shrink-0 ${classicMode ? "text-gray-300" : "text-white/15"}`}>
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+      </div>
+      <Link href={item.href} className={`flex-1 flex items-center gap-3 px-2 py-2 rounded-xl text-sm transition-all ${
+        isActive
+        ? classicMode ? "bg-blue-50 text-blue-700 border border-blue-200 font-medium" : "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-400/30"
+        : classicMode ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100" : "text-white/60 hover:text-white hover:bg-white/5"
+      }`}>
+        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={item.icon} /></svg>
+        <span className="truncate">{item.label}</span>
+      </Link>
+    </div>
+  )
+}
+
 type Props = {
 children: React.ReactNode
 title: string
@@ -121,6 +189,44 @@ const { data: session, status } = useSession()
 const userRole = (session?.user as { role?: string } | undefined)?.role
 const isAdminOrOwner = userRole === "owner" || userRole === "admin"
 const { pinned, toggle: togglePin, isPinned } = usePinnedTools()
+const { order: savedOrder, saveOrder } = useToolOrder()
+const [reorderMode, setReorderMode] = useState(false)
+const [localSections, setLocalSections] = useState<typeof sidebarSections | null>(null)
+
+const orderedSections = useMemo(() => {
+  if (localSections) return localSections
+  return applySectionOrder(sidebarSections, savedOrder)
+}, [savedOrder, localSections])
+
+const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+const handleSectionDragEnd = useCallback((event: DragEndEvent) => {
+  const { active, over } = event
+  if (!over || active.id === over.id) return
+  const oldIdx = orderedSections.findIndex(s => `section-${s.label}` === active.id)
+  const newIdx = orderedSections.findIndex(s => `section-${s.label}` === over.id)
+  if (oldIdx === -1 || newIdx === -1) return
+  const newSections = arrayMove([...orderedSections], oldIdx, newIdx)
+  setLocalSections(newSections)
+  saveOrder(newSections.map(s => ({ label: s.label, items: s.items.map(i => i.href) })))
+}, [orderedSections, saveOrder])
+
+const handleItemDragEnd = useCallback((sectionLabel: string) => (event: DragEndEvent) => {
+  const { active, over } = event
+  if (!over || active.id === over.id) return
+  const sectionIdx = orderedSections.findIndex(s => s.label === sectionLabel)
+  if (sectionIdx === -1) return
+  const section = orderedSections[sectionIdx]
+  const oldIdx = section.items.findIndex(i => i.href === active.id)
+  const newIdx = section.items.findIndex(i => i.href === over.id)
+  if (oldIdx === -1 || newIdx === -1) return
+  const newItems = arrayMove([...section.items], oldIdx, newIdx)
+  const newSections = [...orderedSections]
+  newSections[sectionIdx] = { ...section, items: newItems }
+  setLocalSections(newSections)
+  saveOrder(newSections.map(s => ({ label: s.label, items: s.items.map(i => i.href) })))
+}, [orderedSections, saveOrder])
+
 const [cloudEnabled, setCloudEnabled] = useState(true)
 const [cloudToast, setCloudToast] = useState<string | null>(null)
 const [editInfo, setEditInfo] = useState<{ editsLeft: number; bonusEdits: number; unlimited: boolean } | null>(null)
@@ -181,10 +287,10 @@ if (status === "unauthenticated") {
           </p>
         </div>
         <div className="flex flex-col gap-3">
-          <Link href="/auth/register" className="w-full py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-purple-500/20 block">
+          <Link href="/register" className="w-full py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-purple-500/20 block">
             Create Free Account
           </Link>
-          <Link href="/auth/login" className={`w-full py-3 rounded-xl text-sm font-semibold transition-all block ${classicMode ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200" : "bg-white/5 text-white/70 hover:bg-white/10 border border-white/10"}`}>
+          <Link href="/login" className={`w-full py-3 rounded-xl text-sm font-semibold transition-all block ${classicMode ? "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200" : "bg-white/5 text-white/70 hover:bg-white/10 border border-white/10"}`}>
             Log In
           </Link>
         </div>
@@ -307,7 +413,38 @@ Home
   )
 })()}
 
-{sidebarSections.map((section, si) => (
+{/* Reorder mode toggle for admin/owner */}
+{isAdminOrOwner && (
+<div className="flex items-center justify-between px-3 mb-2">
+  <button onClick={() => setReorderMode(r => !r)} className={`text-[10px] px-2 py-1 rounded-lg font-medium transition flex items-center gap-1 ${reorderMode ? classicMode ? "bg-blue-100 text-blue-700 border border-blue-300" : "bg-blue-500/20 text-blue-400 border border-blue-400/30" : classicMode ? "bg-gray-100 text-gray-400 hover:text-gray-600" : "bg-white/5 text-white/25 hover:text-white/50 border border-white/10"}`}>
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+    {reorderMode ? "Done" : "Reorder"}
+  </button>
+</div>
+)}
+
+{reorderMode && isAdminOrOwner ? (
+/* ── REORDER MODE: sections are draggable ── */
+<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+<SortableContext items={orderedSections.map(s => `section-${s.label}`)} strategy={verticalListSortingStrategy}>
+{orderedSections.map((section) => (
+<div key={section.label}>
+  <SortableSectionHeader id={`section-${section.label}`} label={section.label} classicMode={classicMode} />
+  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd(section.label)}>
+  <SortableContext items={section.items.map(i => i.href)} strategy={verticalListSortingStrategy}>
+  {section.items.map((item) => (
+    <SortableToolItem key={item.href} id={item.href} item={item} active={pathname === item.href} classicMode={classicMode} onPin={() => togglePin(item.href)} />
+  ))}
+  </SortableContext>
+  </DndContext>
+</div>
+))}
+</SortableContext>
+</DndContext>
+) : (
+/* ── NORMAL MODE: standard sidebar ── */
+<>
+{orderedSections.map((section, si) => (
 
 <div key={si}>
 
@@ -315,10 +452,9 @@ Home
 {section.label}
 </p>
 
-{section.items.map((item, ii) => {
+{section.items.filter(item => !isPinned(item.href)).map((item, ii) => {
 
 const active = pathname === item.href
-const itemPinned = isPinned(item.href)
 
 return (
 <div key={ii} className="flex items-center mb-0.5 group">
@@ -335,8 +471,8 @@ active
 </svg>
 <span className="truncate">{item.label}</span>
 </Link>
-<button onClick={() => togglePin(item.href)} className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-0.5 transition-all ${itemPinned ? (classicMode ? "text-amber-500 bg-amber-50" : "text-amber-400 bg-amber-400/10") : `opacity-0 group-hover:opacity-100 ${classicMode ? "text-gray-300 hover:text-amber-500 hover:bg-amber-50" : "text-white/15 hover:text-amber-400 hover:bg-amber-400/10"}`}`} title={itemPinned ? "Unpin" : "Pin"}>
-<svg className="w-3.5 h-3.5" fill={itemPinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth={itemPinned ? "0" : "1.5"} viewBox="0 0 24 24">{itemPinned ? <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/> : <path strokeLinecap="round" strokeLinejoin="round" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>}</svg>
+<button onClick={() => togglePin(item.href)} className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-0.5 transition-all opacity-0 group-hover:opacity-100 ${classicMode ? "text-gray-300 hover:text-amber-500 hover:bg-amber-50" : "text-white/15 hover:text-amber-400 hover:bg-amber-400/10"}`} title="Pin">
+<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
 </button>
 </div>
 )
@@ -346,6 +482,8 @@ active
 </div>
 
 ))}
+</>
+)}
 
 </div>
 
@@ -356,23 +494,19 @@ active
 
 <div className="p-6">
 
-{editInfo && !editInfo.unlimited && editInfo.editsLeft <= 0 && editInfo.bonusEdits <= 0 && (
-<div className={`mb-6 p-5 rounded-2xl border text-center ${classicMode ? "bg-red-50 border-red-200" : "bg-red-500/10 border-red-400/20"}`}>
-<p className={`text-sm font-semibold ${classicMode ? "text-red-700" : "text-red-400"}`}>Daily edit limit reached (0/10)</p>
-<p className={`text-xs mt-1 ${classicMode ? "text-red-500" : "text-red-400/60"}`}>Watch 2 ads from your Dashboard to get bonus edits, or upgrade to Premium for unlimited edits.</p>
-<div className="flex justify-center gap-3 mt-3">
-<Link href="/dashboard" className="px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105 active:scale-95 transition-all">Go to Dashboard</Link>
-</div>
-</div>
-)}
-
+{editInfo && !editInfo.unlimited && editInfo.editsLeft <= 0 && editInfo.bonusEdits <= 0 ? (
+<LimitBlock classicMode={classicMode} />
+) : (
+<>
 {editInfo && !editInfo.unlimited && editInfo.editsLeft > 0 && editInfo.editsLeft <= 3 && (
-<div className={`mb-4 px-4 py-2.5 rounded-xl border flex items-center justify-between ${classicMode ? "bg-amber-50 border-amber-200" : "bg-amber-500/10 border-amber-400/20"}`}>
-<p className={`text-xs ${classicMode ? "text-amber-700" : "text-amber-400"}`}>{editInfo.editsLeft} edit{editInfo.editsLeft > 1 ? "s" : ""} remaining today{editInfo.bonusEdits > 0 ? ` (+${editInfo.bonusEdits} bonus)` : ""}</p>
+<div className={`mb-4 px-4 py-3 rounded-xl border text-center ${classicMode ? "bg-amber-50 border-amber-200" : "bg-amber-500/10 border-amber-400/20"}`}>
+<p className={`text-sm font-bold ${classicMode ? "text-amber-700" : "text-amber-400"}`}>{editInfo.editsLeft} edit{editInfo.editsLeft > 1 ? "s" : ""} remaining today{editInfo.bonusEdits > 0 ? ` (+${editInfo.bonusEdits} bonus)` : ""}</p>
 </div>
 )}
 
 {children}
+</>
+)}
 
 </div>
 

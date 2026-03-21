@@ -46,7 +46,7 @@ function VerifyContent() {
           <p className="text-white/80 font-medium text-lg">Email Verified!</p>
           <p className="text-white/40 text-sm">Your email has been successfully verified.</p>
           <Link
-            href="/auth/login"
+            href="/login"
             className="inline-block mt-4 px-6 py-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:scale-105 transition-all"
           >
             Go to Login
@@ -64,7 +64,7 @@ function VerifyContent() {
           <p className="text-white/80 font-medium text-lg">Verification Failed</p>
           <p className="text-white/40 text-sm">The verification link is invalid or has expired.</p>
           <Link
-            href="/auth/login"
+            href="/login"
             className="inline-block mt-4 text-sm text-blue-400 hover:text-blue-300 transition"
           >
             Back to Login

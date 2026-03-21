@@ -37,7 +37,7 @@ export async function POST() {
         .eq("id", sessionUser.id)
     }
 
-    const verifyUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/auth/verify?token=${token}`
+    const verifyUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/verify?token=${token}`
 
     // Send verification email via nodemailer
     const transporter = nodemailer.createTransport({

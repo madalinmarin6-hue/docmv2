@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
               </div>
               <p className="text-white/80 font-medium">Check your email</p>
               <p className="text-white/40 text-sm">If an account exists with that email, we&apos;ve sent a password reset link.</p>
-              <Link href="/auth/login" className="inline-block mt-4 text-sm text-blue-400 hover:text-blue-300 transition">
+              <Link href="/login" className="inline-block mt-4 text-sm text-blue-400 hover:text-blue-300 transition">
                 Back to login
               </Link>
             </div>
@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
               </button>
 
               <p className="text-center text-sm text-white/40">
-                <Link href="/auth/login" className="text-blue-400 hover:text-blue-300 transition">
+                <Link href="/login" className="text-blue-400 hover:text-blue-300 transition">
                   Back to login
                 </Link>
               </p>

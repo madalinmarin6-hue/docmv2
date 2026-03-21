@@ -155,7 +155,7 @@ export default function Navbar({
   <div className="relative">
     <button onClick={() => setMenu(menu === "convert" ? null : "convert")} className={btnCls(menu === "convert")}>
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
-      Convertor
+      <span className={cm ? "text-blue-600" : "bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent"}>Convertor</span>
       <svg className={`w-3 h-3 transition-transform ${menu === "convert" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
     </button>
     {menu === "convert" && (
@@ -242,7 +242,7 @@ export default function Navbar({
   <div className="relative">
     <button onClick={() => setMenu(menu === "tools" ? null : "tools")} className={btnCls(menu === "tools")}>
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.384 3.065A1.875 1.875 0 013.75 16.578V7.422a1.875 1.875 0 012.286-1.657l5.384 3.065m0 0l5.384-3.065A1.875 1.875 0 0119.09 5.765v9.157a1.875 1.875 0 01-2.286 1.657l-5.384-3.065" /></svg>
-      Tools
+      <span className={cm ? "text-purple-600" : "bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"}>Tools</span>
       <svg className={`w-3 h-3 transition-transform ${menu === "tools" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
     </button>
     {menu === "tools" && (
@@ -300,19 +300,19 @@ export default function Navbar({
   <div className="relative">
     <button onClick={() => setMenu(menu === "more" ? null : "more")} className={btnCls(menu === "more")}>
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
-      More
+      <span className={cm ? "text-emerald-600" : "bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent"}>More</span>
       <svg className={`w-3 h-3 transition-transform ${menu === "more" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
     </button>
     {menu === "more" && (
       <div className={`absolute top-full right-0 mt-2 w-[180px] p-3 ${dropCls}`}>
         <div className="space-y-0.5 text-[13px]">
           {[
-            { href: "/about", label: "About Us" },
-            { href: "/reviews", label: "Reviews" },
-            { href: "/blog", label: "Blog" },
-            { href: "/help", label: "Help & Contact" },
+            { href: "/about", label: "About Us", color: cm ? "text-blue-600" : "text-blue-400" },
+            { href: "/reviews", label: "Reviews", color: cm ? "text-amber-600" : "text-amber-400" },
+            { href: "/blog", label: "Blog", color: cm ? "text-emerald-600" : "text-emerald-400" },
+            { href: "/help", label: "Help & Contact", color: cm ? "text-violet-600" : "text-violet-400" },
           ].map(item => (
-            <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
+            <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition font-medium ${item.color} ${cm ? "hover:bg-gray-100" : "hover:bg-white/10"}`}>{item.label}</Link>
           ))}
           <Link href="/report-bug" onClick={() => setMenu(null)} className={`flex items-center gap-2 py-1.5 px-3 rounded-lg transition font-semibold ${cm ? "text-red-600 bg-red-50 hover:bg-red-100" : "text-red-400 bg-red-500/10 hover:bg-red-500/20"}`}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
@@ -361,18 +361,16 @@ export default function Navbar({
         </Link>
       )}
       {/* Profile */}
-      {!onDashboard && (
-        <Link href="/dashboard" className={`px-3 py-1 rounded-lg text-[13px] font-medium transition ${cm ? "text-gray-700 hover:bg-gray-100" : "text-white/70 hover:text-white hover:bg-white/5"}`}>
-          Profile
-        </Link>
-      )}
+      <Link href="/dashboard" className={`px-3 py-1 rounded-lg text-[13px] font-medium transition ${cm ? "text-gray-700 hover:bg-gray-100" : "text-white/70 hover:text-white hover:bg-white/5"}`}>
+        Profile
+      </Link>
       {/* Sign out */}
       <button onClick={() => signOut({ callbackUrl: "/" })} className="px-3 py-1 rounded-lg text-[13px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">
         Sign Out
       </button>
     </div>
   ) : (
-    <Link href="/auth/login" className="px-4 py-1 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all text-[13px] font-semibold text-white">
+    <Link href="/login" className="px-4 py-1 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all text-[13px] font-semibold text-white">
       Sign In
     </Link>
   )}
@@ -395,19 +393,39 @@ export default function Navbar({
 
 {/* MOBILE MENU */}
 {mobileOpen && (
-<div className={`md:hidden border-t mt-1 pb-4 ${cm ? "border-gray-200" : "border-white/10"}`}>
+<div className={`md:hidden border-t mt-1 pb-4 ${cm ? "border-gray-200 bg-white/95" : "border-white/10 bg-[#0b1026]/95"} backdrop-blur-xl`}>
   <div className="px-4 pt-3 space-y-2">
 
-    {/* User info bar (mobile) */}
-    {isLoggedIn && (
+    {/* Auth buttons at top for mobile */}
+    {isLoggedIn ? (
       <div className={`flex items-center justify-between p-3 rounded-xl mb-2 ${cm ? "bg-gray-50" : "bg-white/5"}`}>
-        <div>
-          <p className={`text-sm font-semibold ${cm ? "text-gray-800" : "text-white"}`}>{user?.name || "User"}</p>
-          <p className={`text-xs ${cm ? "text-gray-400" : "text-white/40"}`}>{user?.email}</p>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-semibold truncate ${cm ? "text-gray-800" : "text-white"}`}>{user?.name || "User"}</p>
+            <p className={`text-xs truncate ${cm ? "text-gray-400" : "text-white/40"}`}>{user?.email}</p>
+          </div>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${planBadge}`}>{planLabel}</span>
         </div>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${planBadge}`}>{planLabel}</span>
       </div>
+    ) : (
+      <Link href="/login" onClick={() => setMobileOpen(false)} className="block w-full py-3 rounded-xl text-sm font-semibold text-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/20 mb-2">
+        Sign In
+      </Link>
     )}
+    <div className={`flex gap-2 mb-3 ${!isLoggedIn ? "hidden" : ""}`}>
+      {isAdmin && (
+        <Link href="/dmc-ctrl" onClick={() => setMobileOpen(false)} className={`flex-1 py-2 rounded-xl text-[13px] font-medium text-center ${isOwner ? cm ? "bg-red-50 text-red-600" : "bg-red-500/15 text-red-400" : cm ? "bg-amber-50 text-amber-600" : "bg-amber-500/15 text-amber-400"}`}>
+          {isOwner ? "Owner Panel" : "Admin"}
+        </Link>
+      )}
+      <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex-1 py-2 rounded-xl text-[13px] font-medium text-center bg-gradient-to-r from-blue-500 to-purple-500 text-white">Profile</Link>
+      {isLoggedIn && (
+        <Link href="/cloud" onClick={() => setMobileOpen(false)} className={`flex-1 py-2 rounded-xl text-[13px] font-medium text-center ${cm ? "bg-purple-50 text-purple-600" : "bg-purple-500/15 text-purple-400"}`}>Cloud</Link>
+      )}
+      <button onClick={() => { signOut({ callbackUrl: "/" }); setMobileOpen(false) }} className="flex-1 py-2 rounded-xl text-[13px] font-medium bg-red-500/10 text-red-400">
+        Sign Out
+      </button>
+    </div>
 
     {/* Convertor – From PDF */}
     <p className={`text-xs font-semibold tracking-wider uppercase px-2 ${cm ? "text-blue-600" : "text-blue-400"}`}>From PDF</p>
@@ -546,28 +564,7 @@ export default function Navbar({
       </div>
     </div>
 
-    {/* Auth buttons */}
-    <div className="pt-3 space-y-2">
-      {isLoggedIn ? (
-        <>
-          {isAdmin && (
-            <Link href="/dmc-ctrl" onClick={() => setMobileOpen(false)} className={`block w-full py-2 rounded-xl text-[13px] font-medium text-center ${isOwner ? cm ? "bg-red-50 text-red-600" : "bg-red-500/15 text-red-400" : cm ? "bg-amber-50 text-amber-600" : "bg-amber-500/15 text-amber-400"}`}>
-              {isOwner ? "Owner Panel" : "Admin Panel"}
-            </Link>
-          )}
-          {!onDashboard && (
-            <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="block w-full py-2 rounded-xl text-[13px] font-medium text-center bg-gradient-to-r from-blue-500 to-purple-500 text-white">Profile</Link>
-          )}
-          <button onClick={() => { signOut({ callbackUrl: "/" }); setMobileOpen(false) }} className="w-full py-2 rounded-xl text-[13px] font-medium bg-red-500/10 text-red-400">
-            Sign Out
-          </button>
-        </>
-      ) : (
-        <Link href="/auth/login" onClick={() => setMobileOpen(false)} className="block w-full py-2 rounded-xl text-[13px] font-semibold text-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/20">
-          Sign In
-        </Link>
-      )}
-    </div>
+    {/* Auth buttons moved to top of mobile menu */}
 
   </div>
 </div>

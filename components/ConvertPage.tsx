@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import ToolLayout from "@/components/ToolLayout"
 import FileUploader from "@/components/FileUploader"
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
@@ -17,6 +17,25 @@ type Props = {
   acceptTypes: string
   fromColor: string
   toColor: string
+}
+
+function DocxPreview({ url }: { url: string }) {
+  const [html, setHtml] = useState("")
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch(url)
+        const buf = await resp.arrayBuffer()
+        const mammoth = (await import("mammoth")).default
+        const result = await mammoth.convertToHtml({ arrayBuffer: buf })
+        setHtml(result.value)
+      } catch { setHtml("<p style='color:#999;text-align:center;padding:2rem'>Could not preview this document.</p>") }
+      setLoading(false)
+    })()
+  }, [url])
+  if (loading) return <div className="p-8 text-center text-white/40"><div className="w-8 h-8 border-3 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-3" /><p className="text-sm">Loading preview...</p></div>
+  return <div className="p-6 bg-white rounded-xl max-h-[60vh] overflow-auto" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acceptTypes, fromColor, toColor }: Props) {
@@ -51,7 +70,7 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
         body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: `${fromFormat}-to-${toFormat}`, toolUsed: `convert-${fromFormat.toLowerCase()}-${toFormat.toLowerCase()}` }),
       })
       if (checkRes.status === 429) {
-        alert("Daily edit limit reached (0/10). Go to Dashboard to watch ads for bonus edits, or upgrade to Premium.")
+        alert("Daily edit limit reached (0/10).\n\n\u2B50 Get Premium \u2014 Unlimited edits & no ads\n\uD83C\uDFA5 Watch 2 Ads \u2014 +1 free edit\n\nGo to your Dashboard to upgrade or watch ads.")
         return
       }
     } catch { /* allow on network error */ }
@@ -742,10 +761,14 @@ export default function ConvertPage({ title, subtitle, fromFormat, toFormat, acc
               <div className="mt-4 rounded-2xl border border-white/10 overflow-hidden bg-white/5">
                 {(resultName.endsWith(".jpg") || resultName.endsWith(".jpeg") || resultName.endsWith(".png") || resultName.endsWith(".svg") || resultName.endsWith(".webp") || resultName.endsWith(".bmp")) ? (
                   <img src={resultUrl} alt={resultName} className="max-w-full max-h-[60vh] mx-auto object-contain p-4" />
-                ) : resultName.endsWith(".pdf") || resultName.endsWith(".html") ? (
+                ) : resultName.endsWith(".pdf") ? (
+                  <embed src={resultUrl + "#toolbar=1&navpanes=0"} type="application/pdf" className="w-full h-[60vh]" />
+                ) : resultName.endsWith(".html") ? (
                   <iframe src={resultUrl} className="w-full h-[60vh]" title="Preview" />
                 ) : resultName.endsWith(".txt") || resultName.endsWith(".csv") || resultName.endsWith(".md") ? (
                   <iframe src={resultUrl} className="w-full h-[50vh] bg-white" title="Preview" />
+                ) : resultName.endsWith(".docx") ? (
+                  <DocxPreview url={resultUrl} />
                 ) : (
                   <div className="p-8 text-center text-white/40">
                     <p className="text-sm">Preview not available for this file type.</p>

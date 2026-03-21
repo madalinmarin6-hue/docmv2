@@ -81,7 +81,7 @@ export default function ReportBugPage() {
             <p className={`text-sm mb-6 ${cm ? "text-gray-500" : "text-white/50"}`}>
               {lang === "RO" ? "Ai nevoie de un cont pentru a trimite un raport." : "You need an account to submit a bug report."}
             </p>
-            <Link href="/auth/login" className="inline-block px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105 transition-all">
+            <Link href="/login" className="inline-block px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105 transition-all">
               {lang === "RO" ? "Conectează-te" : "Sign In"}
             </Link>
           </div>

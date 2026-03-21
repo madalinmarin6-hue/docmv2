@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data: users } = await supabaseAdmin
       .from("users")
-      .select("id, name, email, role, plan, email_verified, created_at")
+      .select("id, name, email, role, plan, email_verified, created_at, cloud_enabled")
       .order("created_at", { ascending: false })
 
     // Get online user IDs from active_visitors (last 2 minutes)
@@ -43,6 +43,7 @@ export async function GET() {
           role: u.role,
           plan: u.plan,
           emailVerified: u.email_verified,
+          cloudEnabled: u.cloud_enabled ?? false,
           createdAt: u.created_at,
           isOnline: onlineUserIds.has(u.id),
           _count: { files: count || 0 },

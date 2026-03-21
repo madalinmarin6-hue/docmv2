@@ -397,7 +397,7 @@ export default function CloudPage() {
             <h2 className={`text-2xl font-bold mb-2 ${cm ? "text-gray-900" : ""}`}>{ct.loginTitle}</h2>
             <p className={`text-sm ${cm ? "text-gray-500" : "text-white/50"}`}>{ct.loginDesc}</p>
           </div>
-          <Link href="/auth/login" className="w-full py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-purple-500/20 block">
+          <Link href="/login" className="w-full py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-purple-500/20 block">
             {ct.loginBtn}
           </Link>
         </div>

@@ -183,7 +183,7 @@ export default function ReviewsPage() {
         ) : (
           <div className={`rounded-2xl p-6 border text-center ${cm ? "bg-white/80 border-gray-200 shadow-lg" : "bg-white/5 border-white/10 backdrop-blur-sm"}`}>
             <p className={`text-sm mb-4 ${cm ? "text-gray-500" : "text-white/50"}`}>{c.loginRequired}</p>
-            <Link href="/auth/login" className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-500/20 inline-block">
+            <Link href="/login" className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-500/20 inline-block">
               {c.loginBtn}
             </Link>
           </div>

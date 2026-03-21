@@ -97,7 +97,7 @@ export default function LoginPage() {
               <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-400/30 focus:ring-offset-0" />
               <span className="text-xs text-white/40 group-hover:text-white/60 transition">Remember me</span>
             </label>
-            <Link href="/auth/forgot-password" className="text-xs text-blue-400 hover:text-blue-300 transition">
+            <Link href="/forgot-password" className="text-xs text-blue-400 hover:text-blue-300 transition">
               Forgot password?
             </Link>
           </div>
@@ -112,7 +112,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-white/40">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/register" className="text-blue-400 hover:text-blue-300 font-medium transition">
+            <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium transition">
               Create one
             </Link>
           </p>

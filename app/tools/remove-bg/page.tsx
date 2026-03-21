@@ -92,20 +92,25 @@ export default function RemoveBgPage() {
 
   async function removeBg(imageFile: File) {
     setProcessing(true)
-    setStatusMsg("Loading AI model (first time may take a moment)...")
+    setStatusMsg("Loading AI model (first time may take ~30s)...")
     setProgress(10)
 
     try {
-      const { removeBackground } = await import("@imgly/background-removal")
+      const bgRemoval = await import("@imgly/background-removal")
+      const removeBackground = bgRemoval.removeBackground || bgRemoval.default
 
       setStatusMsg("Removing background with AI...")
       setProgress(30)
 
       const resultBlob = await removeBackground(imageFile, {
+        publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/",
+        model: "medium" as any,
         progress: (key: string, current: number, total: number) => {
           if (total > 0) {
             const pct = Math.round(30 + (current / total) * 60)
             setProgress(pct)
+            if (key === "compute:inference") setStatusMsg("AI processing image...")
+            else if (key === "fetch:onnx") setStatusMsg("Downloading AI model...")
           }
         },
       })

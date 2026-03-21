@@ -28,6 +28,7 @@ type UserRow = {
   role: string
   plan: string
   emailVerified: boolean
+  cloudEnabled: boolean
   createdAt: string
   isOnline: boolean
   _count: { files: number }
@@ -158,7 +159,7 @@ export default function AdminPage() {
   const [encryptSubTab, setEncryptSubTab] = useState<"records" | "recovery">("records")
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/auth/login")
+    if (status === "unauthenticated") router.push("/login")
     if (status === "authenticated") {
       const user = session?.user as { role?: string } | undefined
       if (user?.role !== "admin" && user?.role !== "owner") router.push("/dashboard")
@@ -455,6 +456,7 @@ export default function AdminPage() {
                         <th className="pb-2.5 pr-3">Role</th>
                         <th className="pb-2.5 pr-3">Plan</th>
                         <th className="pb-2.5 pr-3">Verified</th>
+                        <th className="pb-2.5 pr-3">Cloud</th>
                         <th className="pb-2.5 pr-3">Files</th>
                         <th className="pb-2.5 pr-3">Joined</th>
                         <th className="pb-2.5"></th>
@@ -498,6 +500,11 @@ export default function AdminPage() {
                                   className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition">Re-verify</button>
                               )}
                             </div>
+                          </td>
+                          <td className="py-2.5 pr-3">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${u.cloudEnabled ? "bg-emerald-500/15 text-emerald-400" : "bg-white/5 text-white/30"}`}>
+                              {u.cloudEnabled ? "ON" : "OFF"}
+                            </span>
                           </td>
                           <td className="py-2.5 pr-3 text-white/50">{u._count.files}</td>
                           <td className="py-2.5 pr-3 text-white/30">{new Date(u.createdAt).toLocaleDateString()}</td>
@@ -626,34 +633,30 @@ export default function AdminPage() {
             {tab === "bugs" && (
               <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
                 <h3 className="text-sm font-semibold text-white mb-4">Bug Reports ({bugs.length})</h3>
+                <p className="text-[10px] text-white/30 mb-4">Resolved / closed bugs are auto-deleted after 2 hours.</p>
                 <div className="space-y-2">
                   {bugs.map(b => {
                     const isExpanded = expandedBug === b.id
-                    const preview = b.description.length > 100 ? b.description.slice(0, 100) + "..." : b.description
                     return (
                     <div key={b.id} className="rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition border border-white/5 overflow-hidden">
-                      <div className="p-4 cursor-pointer" onClick={() => setExpandedBug(isExpanded ? null : b.id)}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <p className="text-xs font-semibold text-white/90">{b.title}</p>
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${b.status === "open" ? "bg-red-500/20 text-red-400" : b.status === "in_progress" ? "bg-amber-500/20 text-amber-400" : b.status === "resolved" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/40"}`}>{b.status}</span>
-                              <svg className={`w-3 h-3 text-white/30 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                            </div>
-                            <p className="text-xs text-white/50 mb-1">{isExpanded ? b.description : preview}</p>
-                            <p className="text-[10px] text-white/25">{b.user_name} ({b.user_email}) &middot; {new Date(b.created_at).toLocaleDateString()}</p>
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                            <select value={b.status} onChange={(e) => updateBugStatus(b.id, e.target.value)} className="bg-[#0b1333] border border-white/10 rounded-lg px-1.5 py-1 text-[11px] text-white focus:outline-none">
-                              <option value="open">Open</option><option value="in_progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
-                            </select>
-                            <button onClick={() => deleteBug(b.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition">Delete</button>
-                          </div>
+                      <div className="px-4 py-3 cursor-pointer flex items-center justify-between gap-3" onClick={() => setExpandedBug(isExpanded ? null : b.id)}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                          <p className="text-xs font-semibold text-white/90 truncate">{b.title}</p>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${b.status === "open" ? "bg-red-500/20 text-red-400" : b.status === "in_progress" ? "bg-amber-500/20 text-amber-400" : b.status === "resolved" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/40"}`}>{b.status}</span>
+                          <span className="text-[10px] text-white/20 flex-shrink-0">{new Date(b.created_at).toLocaleDateString()}</span>
+                          <svg className={`w-3 h-3 text-white/30 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                          <select value={b.status} onChange={(e) => updateBugStatus(b.id, e.target.value)} className="bg-[#0b1333] border border-white/10 rounded-lg px-1.5 py-1 text-[11px] text-white focus:outline-none">
+                            <option value="open">Open</option><option value="in_progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
+                          </select>
+                          <button onClick={() => deleteBug(b.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition">Delete</button>
                         </div>
                       </div>
                       {isExpanded && (
-                        <div className="px-4 pb-4 pt-0 border-t border-white/5">
+                        <div className="px-4 pb-4 pt-0 border-t border-white/5 space-y-2">
                           <p className="text-xs text-white/60 whitespace-pre-wrap leading-relaxed">{b.description}</p>
+                          <p className="text-[10px] text-white/25">{b.user_name} ({b.user_email})</p>
                         </div>
                       )}
                     </div>

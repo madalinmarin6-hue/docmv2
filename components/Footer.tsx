@@ -33,7 +33,7 @@ resourceLinks: [
 { label: "Help Center", href: "/help" },
 { label: "Blog", href: "/blog" },
 { label: "Dashboard", href: "/dashboard" },
-{ label: "Login", href: "/auth/login" }
+{ label: "Login", href: "/login" }
 ],
 newsletter: "Stay updated",
 newsletterDesc: "Get the latest updates and tips directly in your inbox.",
@@ -64,7 +64,7 @@ resourceLinks: [
 { label: "Centru Ajutor", href: "/help" },
 { label: "Blog", href: "/blog" },
 { label: "Panou Control", href: "/dashboard" },
-{ label: "Autentificare", href: "/auth/login" }
+{ label: "Autentificare", href: "/login" }
 ],
 newsletter: "Rămâi la curent",
 newsletterDesc: "Primește cele mai noi actualizări și sfaturi direct în inbox.",

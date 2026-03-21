@@ -88,7 +88,7 @@ export default function AboutPage() {
             {/* Madalin */}
             <div className={`text-center p-8 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mx-auto mb-5 text-white font-bold text-3xl shadow-xl shadow-blue-500/25">M</div>
-              <h3 className={`text-2xl font-bold mb-1 ${cm ? "text-gray-900" : ""}`}>{c.founderName}</h3>
+              <h3 className="text-2xl font-bold mb-1"><span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">{c.founderName}</span></h3>
               <p className={`text-sm mb-4 ${cm ? "text-gray-500" : "text-white/40"}`}>{c.founderRole}</p>
               <p className={`text-sm leading-relaxed mb-5 ${cm ? "text-gray-600" : "text-white/60"}`}>{c.founderBio}</p>
               <a href="https://instagram.com/mmadalin5" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-pink-500/20">
@@ -99,7 +99,7 @@ export default function AboutPage() {
             {/* Steezy */}
             <div className={`text-center p-8 rounded-2xl ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mx-auto mb-5 text-white font-bold text-3xl shadow-xl shadow-emerald-500/25">S</div>
-              <h3 className={`text-2xl font-bold mb-1 ${cm ? "text-gray-900" : ""}`}>Steezy</h3>
+              <h3 className="text-2xl font-bold mb-1"><span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Steezy</span></h3>
               <p className={`text-sm mb-4 ${cm ? "text-gray-500" : "text-white/40"}`}>{lang === "RO" ? "Scripter & Co-Dezvoltator" : "Scripter & Co-Developer"}</p>
               <p className={`text-sm leading-relaxed mb-5 ${cm ? "text-gray-600" : "text-white/60"}`}>
                 {lang === "RO"
@@ -124,7 +124,7 @@ export default function AboutPage() {
                   <p className={`text-[9px] mt-0.5 leading-tight ${cm ? "text-gray-500" : "text-white/40"}`}>{lang === "RO" ? "CRM, Email și SMS automat" : "CRM, Email & SMS automated"}</p>
                 </div>
               </div>
-              <a href="https://steezytech.ro/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-500/20">
+              <a href="https://steezytech.ro/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-500/20">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
                 steezytech.ro
               </a>
@@ -180,6 +180,28 @@ export default function AboutPage() {
             </div>
             <h3 className={`text-xl font-bold mb-3 ${cm ? "text-gray-900" : ""}`}>{c.vision}</h3>
             <p className={`text-sm leading-relaxed ${cm ? "text-gray-600" : "text-white/60"}`}>{c.visionDesc}</p>
+          </div>
+        </div>
+
+        {/* BUSINESS USE CASE */}
+        <div className={`p-8 rounded-2xl mb-8 ${cm ? "bg-blue-50 border border-blue-200" : "bg-blue-500/5 border border-blue-400/20"}`}>
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" /></svg>
+            </div>
+            <div className="flex-1">
+              <h3 className={`text-xl font-bold mb-2 ${cm ? "text-blue-800" : "text-blue-300"}`}>{lang === "RO" ? "Perfect pentru Afaceri" : "Perfect for Businesses"}</h3>
+              <p className={`text-sm leading-relaxed mb-3 ${cm ? "text-blue-700" : "text-blue-200/70"}`}>
+                {lang === "RO"
+                  ? "DocM este solutia ideala pentru companiile care lucreaza zilnic cu documente. Fie ca procesati facturi, contracte, rapoarte sau prezentari, platforma noastra va permite sa convertiti, editati si gestionati sute de fisiere rapid si eficient — direct din browser, fara software suplimentar."
+                  : "DocM is the ideal solution for companies that work with documents daily. Whether you process invoices, contracts, reports, or presentations, our platform lets you convert, edit, and manage hundreds of files quickly and efficiently — directly from your browser, with no additional software."}
+              </p>
+              <p className={`text-sm leading-relaxed ${cm ? "text-blue-600" : "text-blue-200/50"}`}>
+                {lang === "RO"
+                  ? "Cu 50+ combinatii de conversie, editoare complete pentru Word, Excel si PowerPoint, plus instrumente PDF avansate, DocM inlocuieste cu succes suite office scumpe. Echipele pot colabora mai eficient, iar costurile de licenta scad semnificativ."
+                  : "With 50+ conversion combinations, full editors for Word, Excel, and PowerPoint, plus advanced PDF tools, DocM successfully replaces expensive office suites. Teams can collaborate more efficiently, and licensing costs drop significantly."}
+              </p>
+            </div>
           </div>
         </div>
 

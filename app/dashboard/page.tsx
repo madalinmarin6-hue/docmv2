@@ -52,8 +52,8 @@ const txt = {
     role: "Role",
     verified: "Email Verified",
     memberSince: "Member Since",
-    watchAds: "Watch 2 Ads for +1 Bonus Edit",
-    watchAdsDesc: "Get an extra free edit by watching 2 short video ads.",
+    watchAds: "Watch __N__ Ads for +1 Bonus Edit",
+    watchAdsDesc: "Get an extra free edit by watching __N__ short video ads.",
     watchBtn: "Watch Ads",
     watching: "Watching...",
     adComplete: "Bonus edit granted!",
@@ -102,8 +102,8 @@ const txt = {
     role: "Rol",
     verified: "Email Verificat",
     memberSince: "Membru Din",
-    watchAds: "Priveste 2 Reclame pentru +1 Editare Bonus",
-    watchAdsDesc: "Primeste o editare gratuita suplimentara privind 2 reclame scurte.",
+    watchAds: "Priveste __N__ Reclame pentru +1 Editare Bonus",
+    watchAdsDesc: "Primeste o editare gratuita suplimentara privind __N__ reclame scurte.",
     watchBtn: "Priveste Reclame",
     watching: "Se incarca...",
     adComplete: "Editare bonus acordata!",
@@ -142,6 +142,7 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false)
   const [adWatching, setAdWatching] = useState(false)
   const [adMsg, setAdMsg] = useState("")
+  const [adsRequired, setAdsRequired] = useState(2)
   const [referralCode, setReferralCode] = useState("")
   const [referralCount, setReferralCount] = useState(0)
   const [copied, setCopied] = useState(false)
@@ -157,7 +158,7 @@ export default function DashboardPage() {
   } | null>(null)
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/auth/login")
+    if (status === "unauthenticated") router.push("/login")
   }, [status, router])
 
   const fetchProfile = () => {
@@ -181,6 +182,9 @@ export default function DashboardPage() {
       }).catch(() => {})
       fetch("/api/user/activity").then(r => r.json()).then(d => {
         if (d && !d.error) setActivity(d)
+      }).catch(() => {})
+      fetch("/api/user/bonus-edit").then(r => r.json()).then(d => {
+        if (d && typeof d.adsRequired === "number") setAdsRequired(d.adsRequired)
       }).catch(() => {})
     }
   }, [status])
@@ -209,11 +213,14 @@ export default function DashboardPage() {
 
   async function handleWatchAds() {
     setAdWatching(true); setAdMsg("")
-    // Simulate watching 2 ads (2x 3 seconds)
-    await new Promise(r => setTimeout(r, 3000))
-    await fetch("/api/user/bonus-edit", { method: "POST" })
-    await new Promise(r => setTimeout(r, 3000))
-    await fetch("/api/user/bonus-edit", { method: "POST" })
+    // Watch the required number of ads (2 for first 3 claims, 4 after)
+    let lastRes: { adsRequired?: number } = {}
+    for (let i = 0; i < adsRequired; i++) {
+      await new Promise(r => setTimeout(r, 3000))
+      const res = await fetch("/api/user/bonus-edit", { method: "POST" })
+      lastRes = await res.json()
+    }
+    if (typeof lastRes.adsRequired === "number") setAdsRequired(lastRes.adsRequired)
     setAdMsg(c.adComplete)
     setAdWatching(false)
     fetchProfile()
@@ -371,8 +378,8 @@ export default function DashboardPage() {
             {!isUnlimited && (
               <section className={`p-5 rounded-2xl mb-10 flex flex-col sm:flex-row items-center justify-between gap-4 ${cm ? "bg-white border border-gray-200 shadow-sm" : "bg-white/5 border border-white/10"}`}>
                 <div>
-                  <h3 className={`text-sm font-semibold ${cm ? "text-gray-900" : "text-white"}`}>{c.watchAds}</h3>
-                  <p className={`text-xs mt-0.5 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.watchAdsDesc}</p>
+                  <h3 className={`text-sm font-semibold ${cm ? "text-gray-900" : "text-white"}`}>{c.watchAds.replace("__N__", String(adsRequired))}</h3>
+                  <p className={`text-xs mt-0.5 ${cm ? "text-gray-400" : "text-white/40"}`}>{c.watchAdsDesc.replace("__N__", String(adsRequired))}</p>
                   {adMsg && <p className="text-xs text-emerald-400 mt-1">{adMsg}</p>}
                 </div>
                 <button onClick={handleWatchAds} disabled={adWatching} className="px-5 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105 active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
@@ -628,12 +635,12 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2 mb-4">
                 <input
                   readOnly
-                  value={referralCode ? `${typeof window !== "undefined" ? window.location.origin : ""}/auth/register?ref=${referralCode}` : "..."}
+                  value={referralCode ? `${typeof window !== "undefined" ? window.location.origin : ""}/register?ref=${referralCode}` : "..."}
                   className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-mono ${cm ? "bg-gray-50 border border-gray-200 text-gray-700" : "bg-white/5 border border-white/10 text-white/80"}`}
                 />
                 <button
                   onClick={() => {
-                    const link = `${window.location.origin}/auth/register?ref=${referralCode}`
+                    const link = `${window.location.origin}/register?ref=${referralCode}`
                     navigator.clipboard.writeText(link)
                     setCopied(true)
                     setTimeout(() => setCopied(false), 2000)

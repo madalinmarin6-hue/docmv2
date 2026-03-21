@@ -52,12 +52,17 @@ async function loadFonts(pdfDoc: PDFDocument): Promise<FontSet> {
   let isUnicode = false
 
   try {
-    const base = "https://cdn.jsdelivr.net/gh/notofonts/notofonts.github.io/fonts/NotoSans/unhinted/ttf"
+    const base = "https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts/hinted/ttf/NotoSans"
+    const fetchFont = async (url: string) => {
+      const r = await fetch(url)
+      if (!r.ok) throw new Error(`Font fetch failed: ${r.status}`)
+      return r.arrayBuffer()
+    }
     const [regBuf, boldBuf, itBuf, biBuf] = await Promise.all([
-      fetch(`${base}/NotoSans-Regular.ttf`).then(r => r.arrayBuffer()),
-      fetch(`${base}/NotoSans-Bold.ttf`).then(r => r.arrayBuffer()),
-      fetch(`${base}/NotoSans-Italic.ttf`).then(r => r.arrayBuffer()),
-      fetch(`${base}/NotoSans-BoldItalic.ttf`).then(r => r.arrayBuffer()),
+      fetchFont(`${base}/NotoSans-Regular.ttf`),
+      fetchFont(`${base}/NotoSans-Bold.ttf`),
+      fetchFont(`${base}/NotoSans-Italic.ttf`),
+      fetchFont(`${base}/NotoSans-BoldItalic.ttf`),
     ])
     regular = await pdfDoc.embedFont(regBuf)
     bold = await pdfDoc.embedFont(boldBuf)
@@ -120,7 +125,16 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
 /** Sanitize text for pdf-lib */
 function sanitize(text: string, isUnicode: boolean): string {
   if (isUnicode) return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
-  return text.replace(/[^\x20-\x7E\u00C0-\u00FF]/g, " ").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+  // Preserve Latin Extended (Romanian ăâîșț, Polish, Czech, etc.) even with standard fonts
+  // Map common Romanian diacritics to closest ASCII equivalent when Unicode fonts unavailable
+  return text
+    .replace(/[\u0218\u015E]/g, "S").replace(/[\u0219\u015F]/g, "s")
+    .replace(/[\u021A\u0162]/g, "T").replace(/[\u021B\u0163]/g, "t")
+    .replace(/[\u0102]/g, "A").replace(/[\u0103]/g, "a")
+    .replace(/[\u00C2]/g, "A").replace(/[\u00E2]/g, "a")
+    .replace(/[\u00CE]/g, "I").replace(/[\u00EE]/g, "i")
+    .replace(/[^\x20-\x7E\u00C0-\u00FF]/g, " ")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
 }
 
 /** Parse hex color string to rgb */
@@ -311,8 +325,134 @@ async function embedImage(pdfDoc: PDFDocument, dataUrl: string): Promise<PDFImag
   return null
 }
 
-/** Main conversion: Word ArrayBuffer → PDF Blob */
-export async function convertWordToPdf(
+/** High-fidelity Word → PDF using browser rendering + html2canvas */
+async function convertViaCanvas(
+  wordBuffer: ArrayBuffer,
+  fileName: string,
+  onProgress?: (pct: number) => void
+): Promise<{ blob: Blob; name: string }> {
+  const mammoth = (await import("mammoth")).default
+  const html2canvas = (await import("html2canvas")).default
+  onProgress?.(10)
+
+  const result = await mammoth.convertToHtml(
+    { arrayBuffer: wordBuffer },
+    {
+      convertImage: mammoth.images.imgElement(async (image: any) => {
+        const buf = await image.read("base64")
+        return { src: `data:${image.contentType};base64,${buf}` }
+      }),
+    }
+  )
+  onProgress?.(30)
+
+  // Create a hidden container with A4-like styling
+  const container = document.createElement("div")
+  container.style.cssText = `
+    position: fixed; top: -9999px; left: -9999px;
+    width: 794px; padding: 56px; background: white; color: black;
+    font-family: 'Segoe UI', 'Noto Sans', 'Arial Unicode MS', Arial, Helvetica, sans-serif;
+    font-size: 12pt; line-height: 1.5; box-sizing: border-box;
+  `
+  // Preload Noto Sans from Google Fonts to guarantee diacritics support
+  const fontLink = document.createElement("link")
+  fontLink.rel = "stylesheet"
+  fontLink.href = "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+  document.head.appendChild(fontLink)
+  // Wait briefly for font to load
+  await new Promise(r => setTimeout(r, 500))
+  // Add base styles for the HTML content
+  const style = document.createElement("style")
+  style.textContent = `
+    .docx-render * { box-sizing: border-box; }
+    .docx-render h1 { font-size: 22pt; font-weight: bold; margin: 18px 0 8px; }
+    .docx-render h2 { font-size: 18pt; font-weight: bold; margin: 14px 0 6px; }
+    .docx-render h3 { font-size: 14pt; font-weight: bold; margin: 12px 0 4px; }
+    .docx-render h4, .docx-render h5, .docx-render h6 { font-weight: bold; margin: 10px 0 4px; }
+    .docx-render p { margin: 0 0 8px; }
+    .docx-render ul, .docx-render ol { margin: 4px 0 8px 24px; }
+    .docx-render li { margin-bottom: 2px; }
+    .docx-render table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    .docx-render td, .docx-render th { border: 1px solid #888; padding: 4px 8px; font-size: 10pt; }
+    .docx-render th { background: #f0f0f0; font-weight: bold; }
+    .docx-render img { max-width: 100%; height: auto; }
+    .docx-render blockquote { border-left: 3px solid #ccc; padding-left: 12px; margin: 8px 0; color: #555; }
+    .docx-render pre, .docx-render code { font-family: 'Courier New', monospace; font-size: 9pt; background: #f5f5f5; padding: 2px 4px; }
+    .docx-render pre { padding: 8px; border-radius: 4px; overflow-x: auto; }
+    .docx-render hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+  `
+  container.appendChild(style)
+
+  const content = document.createElement("div")
+  content.className = "docx-render"
+  content.innerHTML = result.value
+  container.appendChild(content)
+  document.body.appendChild(container)
+
+  onProgress?.(40)
+
+  // Wait for images to load
+  const images = container.querySelectorAll("img")
+  await Promise.all(Array.from(images).map(img => 
+    img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = resolve; img.onerror = resolve })
+  ))
+
+  onProgress?.(50)
+
+  // A4 dimensions in pixels at 96 DPI: 794 x 1123
+  const pageW = 794
+  const pageH = 1123
+  const contentH = container.scrollHeight
+
+  // Capture the full rendered content
+  const canvas = await html2canvas(container, {
+    width: pageW,
+    height: contentH,
+    scale: 2, // 2x for sharper text
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+  })
+
+  document.body.removeChild(container)
+  onProgress?.(70)
+
+  // Split canvas into A4-sized pages
+  const pdfDoc = await PDFDocument.create()
+  const totalPages = Math.ceil(contentH / pageH)
+  const scale = 2 // matches html2canvas scale
+
+  for (let i = 0; i < totalPages; i++) {
+    onProgress?.(70 + Math.round((i / totalPages) * 25))
+
+    const sliceH = Math.min(pageH, contentH - i * pageH)
+    const pageCanvas = document.createElement("canvas")
+    pageCanvas.width = pageW * scale
+    pageCanvas.height = sliceH * scale
+    const ctx = pageCanvas.getContext("2d")!
+    ctx.drawImage(canvas, 0, -(i * pageH * scale))
+
+    const imgData = pageCanvas.toDataURL("image/jpeg", 0.92)
+    const imgBytes = Uint8Array.from(atob(imgData.split(",")[1]), c => c.charCodeAt(0))
+    const pdfImg = await pdfDoc.embedJpg(imgBytes)
+
+    // A4 in PDF points: 595 x 842
+    const pdfPageH = (sliceH / pageH) * 842
+    const page = pdfDoc.addPage([595, pdfPageH])
+    page.drawImage(pdfImg, { x: 0, y: 0, width: 595, height: pdfPageH })
+  }
+
+  onProgress?.(95)
+  const pdfBytes = await pdfDoc.save()
+  const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" })
+  const baseName = fileName.replace(/\.[^.]+$/, "")
+
+  onProgress?.(100)
+  return { blob, name: baseName + ".pdf" }
+}
+
+/** Fallback: block-based rendering with pdf-lib (lower quality) */
+async function convertViaBlocks(
   wordBuffer: ArrayBuffer,
   fileName: string,
   onProgress?: (pct: number) => void
@@ -320,7 +460,6 @@ export async function convertWordToPdf(
   const mammoth = (await import("mammoth")).default
   onProgress?.(10)
 
-  // Extract HTML and images from docx
   const result = await mammoth.convertToHtml(
     { arrayBuffer: wordBuffer },
     {
@@ -336,7 +475,6 @@ export async function convertWordToPdf(
   const blocks = parseHtml(html)
   onProgress?.(40)
 
-  // Create PDF
   const pdfDoc = await PDFDocument.create()
   const fonts = await loadFonts(pdfDoc)
   const baseName = fileName.replace(/\.[^.]+$/, "")
@@ -353,70 +491,39 @@ export async function convertWordToPdf(
     const block = blocks[bi]
     onProgress?.(50 + Math.round((bi / blocks.length) * 40))
 
-    // ── Page break ──
-    if (block.type === "page-break") {
-      state = newPage(pdfDoc, state)
-      continue
-    }
+    if (block.type === "page-break") { state = newPage(pdfDoc, state); continue }
 
-    // ── Horizontal rule ──
     if (block.type === "hr") {
-      state = ensureSpace(pdfDoc, state, 20)
-      state.y -= 8
-      state.page.drawLine({
-        start: { x: MARGIN_L, y: state.y },
-        end: { x: PAGE_W - MARGIN_R, y: state.y },
-        thickness: 0.5,
-        color: rgb(0.7, 0.7, 0.7),
-      })
-      state.y -= 8
-      continue
+      state = ensureSpace(pdfDoc, state, 20); state.y -= 8
+      state.page.drawLine({ start: { x: MARGIN_L, y: state.y }, end: { x: PAGE_W - MARGIN_R, y: state.y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) })
+      state.y -= 8; continue
     }
 
-    // ── Image ──
     if (block.type === "image" && block.imageSrc) {
       const pdfImg = await embedImage(pdfDoc, block.imageSrc)
       if (pdfImg) {
-        const maxW = CONTENT_W
-        const maxH = PAGE_H - MARGIN_T - MARGIN_B - 20
-        let imgW = pdfImg.width
-        let imgH = pdfImg.height
-        // Scale to fit
+        const maxW = CONTENT_W, maxH = PAGE_H - MARGIN_T - MARGIN_B - 20
+        let imgW = pdfImg.width, imgH = pdfImg.height
         if (imgW > maxW) { const s = maxW / imgW; imgW *= s; imgH *= s }
         if (imgH > maxH) { const s = maxH / imgH; imgW *= s; imgH *= s }
-
-        state = ensureSpace(pdfDoc, state, imgH + 16)
-        state.y -= imgH + 8
-        state.page.drawImage(pdfImg, {
-          x: MARGIN_L,
-          y: state.y,
-          width: imgW,
-          height: imgH,
-        })
+        state = ensureSpace(pdfDoc, state, imgH + 16); state.y -= imgH + 8
+        state.page.drawImage(pdfImg, { x: MARGIN_L, y: state.y, width: imgW, height: imgH })
         state.y -= 8
       }
       continue
     }
 
-    // ── Determine font and size ──
-    let font: PDFFont
-    let fontSize: number
+    let font: PDFFont, fontSize: number
     let textColor = block.color ? hexToRgb(block.color) : rgb(0, 0, 0)
     let spacingAfter = 6
 
     if (block.type === "heading") {
       const sizes: Record<number, number> = { 1: 22, 2: 18, 3: 15, 4: 13, 5: 12, 6: 11 }
-      fontSize = sizes[block.level || 1] || 14
-      font = fonts.bold
+      fontSize = sizes[block.level || 1] || 14; font = fonts.bold
       if (!block.color) textColor = rgb(0.1, 0.1, 0.15)
       spacingAfter = fontSize >= 18 ? 14 : 10
-    } else if (block.type === "code") {
-      fontSize = 9
-      font = fonts.mono
-      textColor = rgb(0.2, 0.2, 0.2)
-    } else if (block.type === "table-row") {
-      fontSize = 10
-      font = block.bold ? fonts.bold : fonts.regular
+    } else if (block.type === "code") { fontSize = 9; font = fonts.mono; textColor = rgb(0.2, 0.2, 0.2)
+    } else if (block.type === "table-row") { fontSize = 10; font = block.bold ? fonts.bold : fonts.regular
     } else {
       fontSize = 11
       if (block.bold && block.italic) font = fonts.boldItalic
@@ -430,111 +537,57 @@ export async function convertWordToPdf(
     const fullText = sanitize(bulletPrefix + block.text, fonts.isUnicode)
     const maxWidth = CONTENT_W - indent
 
-    // ── Table row with bordered cells ──
     if (block.type === "table-row" && block.cellsSimple) {
       state = ensureSpace(pdfDoc, state, fontSize + 14)
       const cellCount = block.cellsSimple.length
       const cellWidth = CONTENT_W / Math.max(cellCount, 1)
-      const rowH = fontSize + 10
-
-      state.y -= rowH
+      const rowH = fontSize + 10; state.y -= rowH
       for (let ci = 0; ci < cellCount; ci++) {
         const cellText = sanitize(block.cellsSimple[ci], fonts.isUnicode).substring(0, 60)
         const cx = MARGIN_L + ci * cellWidth
-
-        // Cell border
-        state.page.drawRectangle({
-          x: cx, y: state.y,
-          width: cellWidth, height: rowH,
-          borderColor: rgb(0.6, 0.6, 0.6),
-          borderWidth: 0.5,
-        })
-
-        // Cell text
-        try {
-          state.page.drawText(cellText, {
-            x: cx + 4, y: state.y + 3,
-            size: fontSize, font, color: textColor,
-          })
-        } catch {
-          try {
-            state.page.drawText(cellText.replace(/[^\x20-\x7E]/g, " "), {
-              x: cx + 4, y: state.y + 3,
-              size: fontSize, font: fonts.regular, color: textColor,
-            })
-          } catch { /* skip */ }
-        }
+        state.page.drawRectangle({ x: cx, y: state.y, width: cellWidth, height: rowH, borderColor: rgb(0.6, 0.6, 0.6), borderWidth: 0.5 })
+        try { state.page.drawText(cellText, { x: cx + 4, y: state.y + 3, size: fontSize, font, color: textColor })
+        } catch { try { state.page.drawText(cellText.replace(/[^\x20-\x7E]/g, " "), { x: cx + 4, y: state.y + 3, size: fontSize, font: fonts.regular, color: textColor }) } catch {} }
       }
       continue
     }
 
-    // ── Regular text: word-wrap and render ──
-    if (!fullText.trim() && block.type === "paragraph") {
-      state.y -= fontSize + 2
-      continue
-    }
+    if (!fullText.trim() && block.type === "paragraph") { state.y -= fontSize + 2; continue }
 
     const wrappedLines = wrapText(fullText, font, fontSize, maxWidth)
     const neededHeight = wrappedLines.length * (fontSize + 4) + spacingAfter
     state = ensureSpace(pdfDoc, state, Math.min(neededHeight, fontSize + 4))
 
     for (const line of wrappedLines) {
-      state = ensureSpace(pdfDoc, state, fontSize + 4)
-      state.y -= fontSize + 4
-
-      // Calculate x position for alignment
+      state = ensureSpace(pdfDoc, state, fontSize + 4); state.y -= fontSize + 4
       let x = MARGIN_L + indent
-      if (block.alignment === "center") {
-        try {
-          const lw = font.widthOfTextAtSize(line, fontSize)
-          x = MARGIN_L + (CONTENT_W - lw) / 2
-        } catch { /* fallback left */ }
-      } else if (block.alignment === "right") {
-        try {
-          const lw = font.widthOfTextAtSize(line, fontSize)
-          x = PAGE_W - MARGIN_R - lw
-        } catch { /* fallback left */ }
-      }
-
-      try {
-        state.page.drawText(line, {
-          x, y: state.y, size: fontSize, font, color: textColor,
-        })
-      } catch {
-        try {
-          const safeLine = line.replace(/[^\x20-\x7E]/g, " ")
-          state.page.drawText(safeLine, {
-            x, y: state.y, size: fontSize, font: fonts.regular, color: textColor,
-          })
-        } catch { /* skip */ }
-      }
-
-      // Draw underline
-      if (block.underline) {
-        try {
-          const lw = font.widthOfTextAtSize(line, fontSize)
-          state.page.drawLine({
-            start: { x, y: state.y - 1 },
-            end: { x: x + lw, y: state.y - 1 },
-            thickness: 0.5,
-            color: textColor,
-          })
-        } catch { /* skip */ }
-      }
+      if (block.alignment === "center") { try { const lw = font.widthOfTextAtSize(line, fontSize); x = MARGIN_L + (CONTENT_W - lw) / 2 } catch {} }
+      else if (block.alignment === "right") { try { const lw = font.widthOfTextAtSize(line, fontSize); x = PAGE_W - MARGIN_R - lw } catch {} }
+      try { state.page.drawText(line, { x, y: state.y, size: fontSize, font, color: textColor })
+      } catch { try { state.page.drawText(line.replace(/[^\x20-\x7E]/g, " "), { x, y: state.y, size: fontSize, font: fonts.regular, color: textColor }) } catch {} }
+      if (block.underline) { try { const lw = font.widthOfTextAtSize(line, fontSize); state.page.drawLine({ start: { x, y: state.y - 1 }, end: { x: x + lw, y: state.y - 1 }, thickness: 0.5, color: textColor }) } catch {} }
     }
-
     state.y -= spacingAfter
   }
 
   onProgress?.(95)
-
   const pdfBytes = await pdfDoc.save()
   const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" })
-
   onProgress?.(100)
+  return { blob, name: baseName + ".pdf" }
+}
 
-  return {
-    blob,
-    name: baseName + ".pdf",
+/** Main conversion: Word ArrayBuffer → PDF Blob */
+export async function convertWordToPdf(
+  wordBuffer: ArrayBuffer,
+  fileName: string,
+  onProgress?: (pct: number) => void
+): Promise<{ blob: Blob; name: string }> {
+  // Try high-fidelity canvas-based rendering first
+  try {
+    return await convertViaCanvas(wordBuffer, fileName, onProgress)
+  } catch (err) {
+    console.warn("[WordToPdf] Canvas approach failed, using block fallback:", err)
+    return await convertViaBlocks(wordBuffer, fileName, onProgress)
   }
 }

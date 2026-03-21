@@ -7,9 +7,10 @@ import Link from "next/link"
 type HeroProps = {
   lang: string
   classicMode: boolean
+  compact?: boolean
 }
 
-export default function Hero({ lang, classicMode }: HeroProps) {
+export default function Hero({ lang, classicMode, compact }: HeroProps) {
 
 const { data: session, status } = useSession()
 const isLoggedIn = status === "authenticated"
@@ -38,29 +39,42 @@ useEffect(() => {
 }, [isAdmin, fetchOnlineBreakdown])
 
 useEffect(() => {
-  // Compute initial values only on client to avoid hydration mismatch
-  const launchDate = new Date("2026-01-01")
+  // Deterministic counter: starts at 1000, grows 200-300/day with seeded daily variation
+  // Uses minutes so refresh always gives the SAME value at the same minute
+  const launchDate = new Date("2026-01-15T00:00:00")
   const now = new Date()
   const daysSinceLaunch = Math.max(0, Math.floor((now.getTime() - launchDate.getTime()) / 86400000))
-  let total = 4200
+  let total = 1000
   for (let i = 0; i < daysSinceLaunch; i++) {
-    const seed = (i * 13 + 7) % 23
-    total += 850 + seed * 47
+    const seed = ((i * 17 + 31) * 13) % 101
+    total += 200 + Math.floor(seed)
   }
-  total += Math.floor(now.getHours() * 38)
+  // Add deterministic intra-day increment based on hour + minute (grows ~10/hour)
+  const minuteOfDay = now.getHours() * 60 + now.getMinutes()
+  total += Math.floor(minuteOfDay * 0.17)
   setDocCount(total)
 
+  // Deterministic online count: 100-200 during 8-21, 40-80 at night, gradual transition
   const hour = now.getHours()
-  const base = hour >= 8 && hour <= 22 ? 180 + Math.floor(Math.sin((hour - 8) / 14 * Math.PI) * 220) : 60
-  setUsersOnline(base)
+  const minuteFrac = now.getMinutes() / 60
+  const daySeed = ((daysSinceLaunch * 11 + 5) % 17)
+  const getOnlineTarget = (h: number, mFrac: number) => {
+    const t = h + mFrac
+    if (t >= 9 && t <= 20) return 120 + Math.floor(Math.sin((t - 9) / 11 * Math.PI) * 80) + daySeed
+    if (t > 20 && t <= 23) return Math.floor(120 - (t - 20) / 3 * 60) + daySeed
+    if (t >= 5 && t < 9) return Math.floor(50 + (t - 5) / 4 * 70) + daySeed
+    return 40 + (daySeed % 15)
+  }
+  setUsersOnline(getOnlineTarget(hour, minuteFrac))
   setMounted(true)
 
-  const i1 = setInterval(() => setDocCount(prev => prev + Math.floor(Math.random() * 3) + 1), 2000)
+  // Very slow live tick: +1 every 60s so refresh drift is at most 1
+  const i1 = setInterval(() => setDocCount(prev => prev + 1), 60000)
   const i2 = setInterval(() => setUsersOnline(prev => {
-    const h = new Date().getHours()
-    const target = h >= 8 && h <= 22 ? 180 + Math.floor(Math.sin((h - 8) / 14 * Math.PI) * 220) : 60
+    const n = new Date()
+    const target = getOnlineTarget(n.getHours(), n.getMinutes() / 60)
     return prev + (prev < target ? 1 : prev > target ? -1 : 0)
-  }), 5000)
+  }), 15000)
   return () => { clearInterval(i1); clearInterval(i2) }
 }, [])
 
@@ -98,7 +112,7 @@ const t = content[lang as "EN" | "RO"]
 
 return (
 
-<section className="w-full flex flex-col items-center pt-36 pb-10 px-6 relative overflow-hidden">
+<section className={`w-full flex flex-col items-center pb-10 px-6 relative overflow-hidden ${compact ? "pt-56" : "pt-36"}`}>
 
 
 {/* HERO CARD */}
@@ -119,14 +133,14 @@ return (
 <div className="flex flex-wrap justify-center gap-4 mt-10 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
 
 <Link
-href={isLoggedIn ? "/dashboard" : "/auth/register"}
+href={isLoggedIn ? "/all-tools" : "/login"}
 className="group relative px-8 py-4 rounded-2xl font-bold text-lg text-white overflow-hidden
 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500
 hover:scale-105 active:scale-95 transition-all duration-300
 shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 animate-pulse-glow"
 >
 <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-<span className="relative z-10">{isLoggedIn ? (lang === "RO" ? "Panou de Control" : "Dashboard") : t.joinBtn}</span>
+<span className="relative z-10">{isLoggedIn ? (lang === "RO" ? "Explorează Instrumentele" : "Explore Tools") : t.joinBtn}</span>
 </Link>
 
 </div>

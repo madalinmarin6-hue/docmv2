@@ -86,7 +86,7 @@ function RegisterForm() {
         return
       }
 
-      router.push("/auth/login?registered=true")
+      router.push("/login?registered=true")
     } catch {
       setError("Something went wrong. Please try again.")
       setLoading(false)
@@ -312,7 +312,7 @@ function RegisterForm() {
 
           <p className="text-center text-sm text-white/40">
             Already have an account?{" "}
-            <Link href="/auth/login" className="text-purple-400 hover:text-purple-300 font-medium transition">
+            <Link href="/login" className="text-purple-400 hover:text-purple-300 font-medium transition">
               Sign in
             </Link>
           </p>

@@ -11,6 +11,16 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    // Auto-delete resolved/closed bugs older than 2 hours
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      await supabaseAdmin
+        .from("bug_reports")
+        .delete()
+        .in("status", ["resolved", "closed"])
+        .lt("updated_at", twoHoursAgo)
+    } catch { /* non-critical cleanup */ }
+
     const { data, error } = await supabaseAdmin
       .from("bug_reports")
       .select("*")
@@ -43,7 +53,7 @@ export async function PATCH(req: Request) {
 
     const { error } = await supabaseAdmin
       .from("bug_reports")
-      .update({ status })
+      .update({ status, updated_at: new Date().toISOString() })
       .eq("id", id)
 
     if (error) {
