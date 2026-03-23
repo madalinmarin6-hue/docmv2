@@ -32,6 +32,13 @@ type UserRow = {
   createdAt: string
   isOnline: boolean
   _count: { files: number }
+  editsLeft: number
+  bonusEdits: number
+  hasConverted: boolean
+  ip: string | null
+  country: string | null
+  city: string | null
+  currentPage: string | null
 }
 
 type FileRow = {
@@ -123,10 +130,27 @@ type RecoveryRequest = {
   status: string
 }
 
+type VisitorRow = {
+  visitorId: string
+  userId: string | null
+  ip: string
+  page: string
+  country: string
+  city: string
+  firstSeen: string | null
+  lastPing: string
+  isOnline: boolean
+  isGuest: boolean
+  userName: string | null
+  userEmail: string | null
+  userRole: string | null
+  userPlan: string | null
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [tab, setTab] = useState<"overview" | "users" | "activity" | "reviews" | "bugs" | "cloud" | "questions" | "encrypt">("overview")
+  const [tab, setTab] = useState<"overview" | "users" | "visitors" | "activity" | "reviews" | "bugs" | "cloud" | "questions" | "encrypt" | "updates">("overview")
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [files, setFiles] = useState<FileRow[]>([])
@@ -157,6 +181,17 @@ export default function AdminPage() {
   const [encryptRecords, setEncryptRecords] = useState<EncryptRecord[]>([])
   const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([])
   const [encryptSubTab, setEncryptSubTab] = useState<"records" | "recovery">("records")
+
+  // Visitors
+  const [visitors, setVisitors] = useState<{ online: VisitorRow[]; recent: VisitorRow[]; totalOnline: number; onlineGuests: number; onlineUsers: number } | null>(null)
+  const [visitorsFilter, setVisitorsFilter] = useState<"all" | "guests" | "users">("all")
+
+  // Updates
+  const [updates, setUpdates] = useState<{ id: string; title: string; description: string; type: string; author: string; created_at: string }[]>([])
+  const [newUpdateTitle, setNewUpdateTitle] = useState("")
+  const [newUpdateDesc, setNewUpdateDesc] = useState("")
+  const [newUpdateType, setNewUpdateType] = useState("update")
+  const [updatesLoading, setUpdatesLoading] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login")
@@ -194,11 +229,15 @@ export default function AdminPage() {
       }).finally(() => setLoading(false))
     } else if (tab === "questions") {
       fetch("/api/questions").then(r => r.json()).then(setQuestions).finally(() => setLoading(false))
+    } else if (tab === "visitors") {
+      fetch("/api/admin/visitors").then(r => r.json()).then(setVisitors).finally(() => setLoading(false))
     } else if (tab === "encrypt") {
       Promise.all([
         fetch("/api/encrypt-record").then(r => r.json()).then(d => setEncryptRecords(d.records || [])),
         fetch("/api/encrypt-recovery").then(r => r.json()).then(d => setRecoveryRequests(d.requests || [])),
       ]).finally(() => setLoading(false))
+    } else if (tab === "updates") {
+      fetch("/api/admin/updates").then(r => r.json()).then(d => setUpdates(d.updates || [])).finally(() => setLoading(false))
     }
   }, [tab, status])
 
@@ -217,6 +256,14 @@ export default function AdminPage() {
     const iv = setInterval(() => {
       fetch("/api/admin/users").then(r => r.json()).then(setUsers)
     }, 10000)
+    return () => clearInterval(iv)
+  }, [tab, status])
+
+  useEffect(() => {
+    if (tab !== "visitors" || status !== "authenticated") return
+    const iv = setInterval(() => {
+      fetch("/api/admin/visitors").then(r => r.json()).then(setVisitors)
+    }, 5000)
     return () => clearInterval(iv)
   }, [tab, status])
 
@@ -302,7 +349,7 @@ export default function AdminPage() {
   }
 
   const cloudSizeLabel = cloudTotalSize > 0 ? ` (${cloudTotalSize < 1024*1024 ? (cloudTotalSize/1024).toFixed(1)+" KB" : (cloudTotalSize/(1024*1024)).toFixed(1)+" MB"})` : ""
-  const tabs = ["overview", "users", "activity", "reviews", "bugs", "cloud", "questions", "encrypt"] as const
+  const tabs = ["overview", "users", "visitors", "activity", "reviews", "bugs", "cloud", "questions", "encrypt", "updates"] as const
   const tabIcons: Record<string, string> = {
     overview: "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z",
     users: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
@@ -311,7 +358,9 @@ export default function AdminPage() {
     bugs: "M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152-6.135 3 3 0 10-2.055 0c-.16 2.14-.613 4.248-1.34 6.24M12 12.75a2.25 2.25 0 002.248-2.354M12 12.75a2.25 2.25 0 01-2.248-2.354M12 8.25c.995 0 1.971-.08 2.922-.236.403-.066.74-.358.795-.762a3.778 3.778 0 00-.399-2.25M12 8.25c-.995 0-1.97-.08-2.922-.236-.402-.066-.74-.358-.795-.762a3.734 3.734 0 01.4-2.253M12 8.25a2.25 2.25 0 00-2.248 2.146M12 8.25a2.25 2.25 0 012.248 2.146M8.683 5a6.032 6.032 0 01-1.155-1.002c.07-.63.27-1.222.574-1.747m.581 2.749A3.75 3.75 0 0112 3.75c1.274 0 2.404.634 3.087 1.603m-.17-.354c.304.525.504 1.117.574 1.747A6.034 6.034 0 0115.317 5",
     cloud: "M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z",
     questions: "M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z",
+    visitors: "M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z",
     encrypt: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z",
+    updates: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10",
   }
   const onlineTotal = (stats?.onlineUsers ?? 0) + (stats?.onlineVisitors ?? 0)
 
@@ -447,6 +496,7 @@ export default function AdminPage() {
               <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-white">All Users ({users.length})</h3>
+                  <p className="text-[10px] text-white/30">Auto-refreshes every 10s</p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -455,6 +505,9 @@ export default function AdminPage() {
                         <th className="pb-2.5 pr-3">User</th>
                         <th className="pb-2.5 pr-3">Role</th>
                         <th className="pb-2.5 pr-3">Plan</th>
+                        <th className="pb-2.5 pr-3">Edits</th>
+                        <th className="pb-2.5 pr-3">Converted</th>
+                        <th className="pb-2.5 pr-3">IP / Location</th>
                         <th className="pb-2.5 pr-3">Verified</th>
                         <th className="pb-2.5 pr-3">Cloud</th>
                         <th className="pb-2.5 pr-3">Files</th>
@@ -463,7 +516,9 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map(u => (
+                      {users.map(u => {
+                        const isFree = u.plan === "free" && u.role === "user"
+                        return (
                         <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition">
                           <td className="py-2.5 pr-3">
                             <div className="flex items-center gap-2">
@@ -474,6 +529,9 @@ export default function AdminPage() {
                               <div className="min-w-0">
                                 <p className="text-white/80 font-medium truncate">{u.name}</p>
                                 <p className="text-white/30 text-[10px] truncate">{u.email}</p>
+                                {u.isOnline && u.currentPage && (
+                                  <p className="text-blue-400/60 text-[9px] font-mono truncate">{u.currentPage}</p>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -490,15 +548,43 @@ export default function AdminPage() {
                             </select>
                           </td>
                           <td className="py-2.5 pr-3">
+                            {isFree ? (
+                              <div className="flex items-center gap-1">
+                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${u.editsLeft <= 0 ? "bg-red-500/15 text-red-400" : u.editsLeft <= 3 ? "bg-amber-500/15 text-amber-400" : "bg-emerald-500/15 text-emerald-400"}`}>
+                                  {u.editsLeft}/10
+                                </span>
+                                {u.bonusEdits > 0 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400">+{u.bonusEdits}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-white/20">∞</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 pr-3">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${u.hasConverted ? "bg-emerald-500/15 text-emerald-400" : "bg-white/5 text-white/30"}`}>
+                              {u.hasConverted ? "Yes" : "No"}
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-3">
+                            {u.isOnline && u.ip ? (
+                              <div>
+                                <p className="font-mono text-white/50 text-[10px] select-all">{u.ip}</p>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="text-[10px]">{u.country === "Local" ? "🏠" : "🌍"}</span>
+                                  <p className="text-white/40 text-[10px]">{u.city}{u.country && u.country !== u.city ? `, ${u.country}` : ""}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-white/15 text-[10px]">—</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 pr-3">
                             <div className="flex items-center gap-1.5">
                               <button onClick={() => updateUser(u.id, { email_verified: !u.emailVerified })}
                                 className={`text-[11px] px-2 py-0.5 rounded-full font-medium transition ${u.emailVerified ? "bg-emerald-500/15 text-emerald-400 hover:bg-red-500/15 hover:text-red-400" : "bg-red-500/15 text-red-400 hover:bg-emerald-500/15 hover:text-emerald-400"}`}>
-                                {u.emailVerified ? "Verified" : "Unverified"}
+                                {u.emailVerified ? "✓" : "✗"}
                               </button>
-                              {u.emailVerified && (
-                                <button onClick={() => resendVerifyEmail(u.id)} title="Reset to unverified"
-                                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition">Re-verify</button>
-                              )}
                             </div>
                           </td>
                           <td className="py-2.5 pr-3">
@@ -507,16 +593,159 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="py-2.5 pr-3 text-white/50">{u._count.files}</td>
-                          <td className="py-2.5 pr-3 text-white/30">{new Date(u.createdAt).toLocaleDateString()}</td>
+                          <td className="py-2.5 pr-3 text-white/30 text-[10px]">{new Date(u.createdAt).toLocaleDateString()}</td>
                           <td className="py-2.5">
                             {isOwner && <button onClick={() => deleteUser(u.id)} className="text-[10px] text-red-400/40 hover:text-red-400 transition">Delete</button>}
                           </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                   {users.length === 0 && <p className="text-white/30 text-xs py-8 text-center">No users found</p>}
                 </div>
+              </div>
+            )}
+
+            {/* ═══ VISITORS ═══ */}
+            {tab === "visitors" && visitors && (
+              <div className="space-y-4">
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <StatCard label="Total Online" value={visitors.totalOnline} color="text-green-400" pulse />
+                  <StatCard label="Guests" value={visitors.onlineGuests} color="text-orange-400" />
+                  <StatCard label="Logged-in Users" value={visitors.onlineUsers} color="text-blue-400" />
+                </div>
+
+                {/* Filter */}
+                <div className="flex gap-2">
+                  {(["all", "guests", "users"] as const).map(f => (
+                    <button key={f} onClick={() => setVisitorsFilter(f)}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition capitalize ${visitorsFilter === f ? "bg-white/10 text-white border border-white/20" : "text-white/40 hover:text-white/60 border border-transparent"}`}>
+                      {f === "all" ? `All (${visitors.online.length})` : f === "guests" ? `Guests (${visitors.online.filter(v => v.isGuest).length})` : `Users (${visitors.online.filter(v => !v.isGuest).length})`}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Online visitors table */}
+                <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span></span>
+                      <h3 className="text-sm font-semibold text-white">Online Now ({visitors.online.length})</h3>
+                    </div>
+                    <p className="text-[10px] text-white/30">Auto-refreshes every 5s</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-white/40 text-left border-b border-white/10">
+                          <th className="pb-2.5 pr-3">Visitor</th>
+                          <th className="pb-2.5 pr-3">IP</th>
+                          <th className="pb-2.5 pr-3">Location</th>
+                          <th className="pb-2.5 pr-3">Page</th>
+                          <th className="pb-2.5 pr-3">First Seen</th>
+                          <th className="pb-2.5">Last Ping</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visitors.online
+                          .filter(v => visitorsFilter === "all" ? true : visitorsFilter === "guests" ? v.isGuest : !v.isGuest)
+                          .map(v => (
+                          <tr key={v.visitorId} className="border-b border-white/5 hover:bg-white/5 transition">
+                            <td className="py-2.5 pr-3">
+                              {v.isGuest ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" /></svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-orange-400/80 font-medium">Guest</p>
+                                    <p className="text-white/20 text-[10px] truncate max-w-[120px]">{v.visitorId.slice(0, 12)}...</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <div className="relative w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-white font-bold text-[10px]">{(v.userName || "U").charAt(0).toUpperCase()}</span>
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0b1333] bg-green-500" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-white/80 font-medium truncate">{v.userName}</p>
+                                    <p className="text-white/25 text-[10px] truncate">{v.userEmail}</p>
+                                  </div>
+                                  {v.userRole && v.userRole !== "user" && (
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${v.userRole === "owner" ? "bg-red-500/20 text-red-400" : "bg-amber-500/20 text-amber-400"}`}>{v.userRole}</span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <span className="font-mono text-white/50 text-[11px] select-all">{v.ip}</span>
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px]">{v.country === "Local" ? "🏠" : "🌍"}</span>
+                                <div>
+                                  <p className="text-white/60 text-[11px]">{v.city}</p>
+                                  <p className="text-white/25 text-[10px]">{v.country}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded ${v.page === "/" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/50"}`}>{v.page}</span>
+                            </td>
+                            <td className="py-2.5 pr-3 text-white/30 text-[11px]">{v.firstSeen ? new Date(v.firstSeen).toLocaleString() : "—"}</td>
+                            <td className="py-2.5 text-white/30 text-[11px]">{new Date(v.lastPing).toLocaleTimeString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {visitors.online.filter(v => visitorsFilter === "all" ? true : visitorsFilter === "guests" ? v.isGuest : !v.isGuest).length === 0 && (
+                      <p className="text-white/30 text-xs py-8 text-center">No {visitorsFilter === "all" ? "visitors" : visitorsFilter} online right now</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recently disconnected */}
+                {visitors.recent.length > 0 && (
+                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                    <h3 className="text-sm font-semibold text-white/50 mb-4">Recently Disconnected ({visitors.recent.length})</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs opacity-60">
+                        <thead>
+                          <tr className="text-white/30 text-left border-b border-white/10">
+                            <th className="pb-2.5 pr-3">Visitor</th>
+                            <th className="pb-2.5 pr-3">IP</th>
+                            <th className="pb-2.5 pr-3">Location</th>
+                            <th className="pb-2.5 pr-3">Last Page</th>
+                            <th className="pb-2.5">Left At</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {visitors.recent.map(v => (
+                            <tr key={v.visitorId} className="border-b border-white/5">
+                              <td className="py-2 pr-3">
+                                {v.isGuest ? (
+                                  <span className="text-orange-400/50">Guest</span>
+                                ) : (
+                                  <div>
+                                    <p className="text-white/50">{v.userName}</p>
+                                    <p className="text-white/20 text-[10px]">{v.userEmail}</p>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2 pr-3 font-mono text-white/30 text-[11px]">{v.ip}</td>
+                              <td className="py-2 pr-3 text-white/30 text-[11px]">{v.city}, {v.country}</td>
+                              <td className="py-2 pr-3 font-mono text-white/30 text-[11px]">{v.page}</td>
+                              <td className="py-2 text-white/20 text-[11px]">{new Date(v.lastPing).toLocaleTimeString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -643,7 +872,7 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
                           <p className="text-xs font-semibold text-white/90 truncate">{b.title}</p>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${b.status === "open" ? "bg-red-500/20 text-red-400" : b.status === "in_progress" ? "bg-amber-500/20 text-amber-400" : b.status === "resolved" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/40"}`}>{b.status}</span>
-                          <span className="text-[10px] text-white/20 flex-shrink-0">{new Date(b.created_at).toLocaleDateString()}</span>
+                          <span className="text-[10px] text-white/20 flex-shrink-0">{new Date(b.created_at).toLocaleDateString()} {new Date(b.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                           <svg className={`w-3 h-3 text-white/30 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -867,6 +1096,62 @@ export default function AdminPage() {
                     </div>
                   ))}
                   {questions.length === 0 && <p className="text-white/30 text-xs py-8 text-center">No questions yet</p>}
+                </div>
+              </div>
+            )}
+
+            {/* UPDATES TAB */}
+            {tab === "updates" && (
+              <div className="space-y-5">
+                {isOwner && (
+                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                    <h3 className="text-sm font-semibold text-white">Add Update</h3>
+                    <input value={newUpdateTitle} onChange={e => setNewUpdateTitle(e.target.value)} placeholder="Update title..." className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-400/50" />
+                    <textarea value={newUpdateDesc} onChange={e => setNewUpdateDesc(e.target.value)} placeholder="Description (what was added, changed, fixed...)" rows={3} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-400/50 resize-none" />
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-1">
+                        {(["update", "feature", "fix", "remove"] as const).map(t => (
+                          <button key={t} onClick={() => setNewUpdateType(t)} className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition capitalize ${newUpdateType === t ? t === "feature" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-400/30" : t === "fix" ? "bg-amber-500/20 text-amber-400 border border-amber-400/30" : t === "remove" ? "bg-red-500/20 text-red-400 border border-red-400/30" : "bg-blue-500/20 text-blue-400 border border-blue-400/30" : "bg-white/5 text-white/30 border border-white/10"}`}>{t}</button>
+                        ))}
+                      </div>
+                      <div className="flex-1" />
+                      <button disabled={updatesLoading || !newUpdateTitle.trim()} onClick={async () => {
+                        setUpdatesLoading(true)
+                        try {
+                          const res = await fetch("/api/admin/updates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: newUpdateTitle, description: newUpdateDesc, type: newUpdateType }) })
+                          const d = await res.json()
+                          if (d.update) { setUpdates(prev => [d.update, ...prev]); setNewUpdateTitle(""); setNewUpdateDesc(""); setNewUpdateType("update") }
+                        } catch {}
+                        setUpdatesLoading(false)
+                      }} className="px-5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white disabled:opacity-40 hover:scale-105 active:scale-95 transition-all shadow-lg">
+                        {updatesLoading ? "Saving..." : "Add Update"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="p-5 rounded-2xl bg-white/5 border border-white/10">
+                  <h3 className="text-sm font-semibold text-white mb-4">Update Log ({updates.length})</h3>
+                  <div className="space-y-2">
+                    {updates.map(u => (
+                      <div key={u.id} className="rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition border border-white/5 px-4 py-3">
+                        <div className="flex items-start gap-3">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 mt-0.5 capitalize ${u.type === "feature" ? "bg-emerald-500/20 text-emerald-400" : u.type === "fix" ? "bg-amber-500/20 text-amber-400" : u.type === "remove" ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"}`}>{u.type}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-white/90">{u.title}</p>
+                            {u.description && <p className="text-[11px] text-white/50 mt-1 whitespace-pre-wrap">{u.description}</p>}
+                            <p className="text-[10px] text-white/20 mt-1">{u.author} &middot; {new Date(u.created_at).toLocaleDateString()} {new Date(u.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                          </div>
+                          {isOwner && (
+                            <button onClick={async () => {
+                              await fetch("/api/admin/updates", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: u.id }) })
+                              setUpdates(prev => prev.filter(x => x.id !== u.id))
+                            }} className="text-[10px] text-red-400/40 hover:text-red-400 transition flex-shrink-0">Delete</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {updates.length === 0 && <p className="text-white/30 text-xs py-8 text-center">No updates logged yet</p>}
+                  </div>
                 </div>
               </div>
             )}

@@ -33,6 +33,9 @@ export default function Navbar({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [onlineCount, setOnlineCount] = useState<{ users: number; visitors: number; owners: number; admins: number; regular: number } | null>(null)
   const navRef = useRef<HTMLElement>(null)
+  const [notifications, setNotifications] = useState<{ id: string; type: string; message: string; time: string }[]>([])
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [seenNotifIds, setSeenNotifIds] = useState<Set<string>>(new Set())
   const toggleClassic = () => setClassicMode(!classicMode)
 
   // Fetch online count for admin/owner users
@@ -79,6 +82,7 @@ export default function Navbar({
       if (navRef.current && !navRef.current.contains(e.target as Node)) {
         setMenu(null)
         setMobileOpen(false)
+        setNotifOpen(false)
       }
     }
     document.addEventListener("mousedown", handler)
@@ -89,6 +93,30 @@ export default function Navbar({
     setMobileOpen(false)
     setMenu(null)
   }, [])
+
+  // Fetch notifications for owner
+  useEffect(() => {
+    if (!isOwner) return
+    const stored = localStorage.getItem("docm_seen_notifs")
+    if (stored) { try { setSeenNotifIds(new Set(JSON.parse(stored))) } catch {} }
+    const fetchNotifs = () => {
+      fetch("/api/admin/notifications").then(r => r.json()).then(d => {
+        if (d.notifications) setNotifications(d.notifications)
+      }).catch(() => {})
+    }
+    fetchNotifs()
+    const iv = setInterval(fetchNotifs, 30000)
+    return () => clearInterval(iv)
+  }, [isOwner])
+
+  const markAllSeen = () => {
+    const ids = new Set(notifications.map(n => n.id))
+    setSeenNotifIds(ids)
+    localStorage.setItem("docm_seen_notifs", JSON.stringify([...ids]))
+    setNotifOpen(false)
+  }
+
+  const unseenCount = notifications.filter(n => !seenNotifIds.has(n.id)).length
 
   const cm = classicMode
 
@@ -246,10 +274,10 @@ export default function Navbar({
       <svg className={`w-3 h-3 transition-transform ${menu === "tools" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
     </button>
     {menu === "tools" && (
-      <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[480px] p-4 ${dropCls}`}>
-        <div className="grid grid-cols-2 gap-4 text-[13px]">
+      <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[820px] p-5 ${dropCls}`}>
+        <div className="grid grid-cols-4 gap-5 text-[13px]">
           <div>
-            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-red-600" : "text-red-400"}`}>PDF Tools</p>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-red-600" : "text-red-400"}`}>PDF Core</p>
             <div className="space-y-0.5">
               {[
                 { href: "/tools/pdf-viewer", label: "PDF Viewer" },
@@ -258,9 +286,38 @@ export default function Navbar({
                 { href: "/tools/split-pdf", label: "Split PDF" },
                 { href: "/tools/merge-pdf", label: "Merge PDF" },
                 { href: "/tools/rotate-pdf", label: "Rotate PDF" },
-                { href: "/tools/compress", label: "Compress" },
+                { href: "/tools/compress", label: "Compress PDF" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-orange-600" : "text-orange-400"}`}>PDF Enhance</p>
+            <div className="space-y-0.5">
+              {[
                 { href: "/tools/watermark", label: "Add Watermark" },
+                { href: "/tools/stamp", label: "Add Stamp" },
+                { href: "/tools/sign-pdf", label: "Sign PDF" },
+                { href: "/tools/header-footer", label: "Header & Footer" },
                 { href: "/tools/encrypt-pdf", label: "Encrypt / Decrypt" },
+                { href: "/tools/flatten-pdf", label: "Flatten PDF" },
+                { href: "/tools/repair-pdf", label: "Repair PDF" },
+              ].map(item => (
+                <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className={`mb-2 font-semibold text-xs tracking-wider uppercase ${cm ? "text-sky-600" : "text-sky-400"}`}>PDF Pages & Info</p>
+            <div className="space-y-0.5">
+              {[
+                { href: "/tools/delete-pages", label: "Delete Pages" },
+                { href: "/tools/extract-pages", label: "Extract Pages" },
+                { href: "/tools/reorganize-pdf", label: "Reorganize Pages" },
+                { href: "/tools/compare-pdf", label: "Compare PDFs" },
+                { href: "/tools/edit-metadata", label: "Edit Metadata" },
+                { href: "/tools/pdf-info", label: "PDF Info" },
                 { href: "/tools/extract-images", label: "Extract Images" },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
@@ -273,7 +330,7 @@ export default function Navbar({
               {[
                 { href: "/tools/word-editor", label: "Word Editor" },
                 { href: "/tools/excel-editor", label: "Excel Editor" },
-                { href: "/tools/powerpoint-editor", label: "PowerPoint Editor" },
+                { href: "/tools/powerpoint-editor", label: "PowerPoint" },
                 { href: "/tools/txt-editor", label: "TXT Editor" },
                 { href: "/tools/csv-editor", label: "CSV Editor" },
                 { href: "/tools/word-viewer", label: "Word Viewer" },
@@ -281,11 +338,17 @@ export default function Navbar({
                 <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
               ))}
             </div>
-            <p className={`mb-2 mt-4 font-semibold text-xs tracking-wider uppercase ${cm ? "text-emerald-600" : "text-emerald-400"}`}>Utilities</p>
+            <p className={`mb-2 mt-3 font-semibold text-xs tracking-wider uppercase ${cm ? "text-emerald-600" : "text-emerald-400"}`}>Utilities</p>
             <div className="space-y-0.5">
               {[
                 { href: "/tools/ocr", label: "OCR (Image → Text)" },
                 { href: "/tools/remove-bg", label: "Remove Background" },
+                { href: "/tools/adjust-colors", label: "Adjust Colors" },
+                { href: "/tools/background-color", label: "Background Color" },
+                { href: "/tools/scanner-effect", label: "Scanner Effect" },
+                { href: "/tools/rasterize-pdf", label: "Rasterize PDF" },
+                { href: "/tools/url-to-pdf", label: "URL → PDF" },
+                { href: "/tools/screenshot", label: "Screenshot" },
               ].map(item => (
                 <Link key={item.href} href={item.href} onClick={() => setMenu(null)} className={`block py-1.5 px-3 rounded-lg transition ${linkCls}`}>{item.label}</Link>
               ))}
@@ -359,6 +422,46 @@ export default function Navbar({
         <Link href="/dmc-ctrl" className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition ${isOwner ? cm ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-red-500/15 text-red-400 hover:bg-red-500/25" : cm ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"}`}>
           {isOwner ? "Owner Panel" : "Admin"}
         </Link>
+      )}
+      {/* Owner notification bell */}
+      {isOwner && (
+        <div className="relative">
+          <button onClick={() => { setNotifOpen(!notifOpen); setMenu(null) }} className={`relative w-8 h-8 rounded-lg flex items-center justify-center transition ${cm ? "hover:bg-gray-100 text-gray-600" : "hover:bg-white/10 text-white/60"}`}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+            {unseenCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">{unseenCount > 9 ? "9+" : unseenCount}</span>
+            )}
+          </button>
+          {notifOpen && (
+            <div className={`absolute top-full right-0 mt-2 w-[340px] rounded-2xl shadow-2xl backdrop-blur-xl border z-50 ${cm ? "bg-white/95 border-gray-200" : "bg-[#0b1026]/95 border-white/10"}`}>
+              <div className={`flex items-center justify-between px-4 py-3 border-b ${cm ? "border-gray-200" : "border-white/10"}`}>
+                <span className={`text-xs font-semibold ${cm ? "text-gray-800" : "text-white"}`}>Notifications</span>
+                {unseenCount > 0 && <button onClick={markAllSeen} className="text-[10px] text-blue-400 hover:text-blue-300 transition">Mark all read</button>}
+              </div>
+              <div className="max-h-[320px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className={`text-xs py-8 text-center ${cm ? "text-gray-400" : "text-white/30"}`}>No notifications</p>
+                ) : (
+                  notifications.slice(0, 20).map(n => {
+                    const unseen = !seenNotifIds.has(n.id)
+                    const icon = n.type === "bug" ? "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" : n.type === "user" ? "M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" : "M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
+                    const color = n.type === "bug" ? "text-red-400" : n.type === "user" ? "text-blue-400" : "text-emerald-400"
+                    return (
+                      <div key={n.id} className={`px-4 py-2.5 flex items-start gap-2.5 transition ${unseen ? cm ? "bg-blue-50/50" : "bg-white/[0.03]" : ""} ${cm ? "hover:bg-gray-50" : "hover:bg-white/5"}`}>
+                        <svg className={`w-4 h-4 flex-shrink-0 mt-0.5 ${color}`} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-[11px] leading-relaxed ${cm ? "text-gray-700" : "text-white/70"}`}>{n.message}</p>
+                          <p className={`text-[9px] mt-0.5 ${cm ? "text-gray-400" : "text-white/25"}`}>{new Date(n.time).toLocaleDateString()} {new Date(n.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                        </div>
+                        {unseen && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
       {/* Profile */}
       <Link href="/dashboard" className={`px-3 py-1 rounded-lg text-[13px] font-medium transition ${cm ? "text-gray-700 hover:bg-gray-100" : "text-white/70 hover:text-white hover:bg-white/5"}`}>
@@ -500,6 +603,17 @@ export default function Navbar({
         { href: "/tools/watermark", label: "Add Watermark" },
         { href: "/tools/encrypt-pdf", label: "Encrypt / Decrypt" },
         { href: "/tools/extract-images", label: "Extract Images" },
+        { href: "/tools/delete-pages", label: "Delete Pages" },
+        { href: "/tools/extract-pages", label: "Extract Pages" },
+        { href: "/tools/reorganize-pdf", label: "Reorganize" },
+        { href: "/tools/sign-pdf", label: "Sign PDF" },
+        { href: "/tools/stamp", label: "Add Stamp" },
+        { href: "/tools/header-footer", label: "Header & Footer" },
+        { href: "/tools/flatten-pdf", label: "Flatten PDF" },
+        { href: "/tools/repair-pdf", label: "Repair PDF" },
+        { href: "/tools/compare-pdf", label: "Compare PDFs" },
+        { href: "/tools/edit-metadata", label: "Edit Metadata" },
+        { href: "/tools/pdf-info", label: "PDF Info" },
       ].map(item => (
         <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
       ))}
@@ -526,6 +640,12 @@ export default function Navbar({
       {[
         { href: "/tools/ocr", label: "OCR (Image → Text)" },
         { href: "/tools/remove-bg", label: "Remove Background" },
+        { href: "/tools/adjust-colors", label: "Adjust Colors" },
+        { href: "/tools/background-color", label: "Background Color" },
+        { href: "/tools/scanner-effect", label: "Scanner Effect" },
+        { href: "/tools/rasterize-pdf", label: "Rasterize PDF" },
+        { href: "/tools/url-to-pdf", label: "URL → PDF" },
+        { href: "/tools/screenshot", label: "Screenshot" },
       ].map(item => (
         <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`py-2 px-3 rounded-lg transition text-[13px] ${linkCls}`}>{item.label}</Link>
       ))}

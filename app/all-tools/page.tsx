@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { useApp } from "@/components/AppContext"
@@ -36,6 +36,16 @@ const defaultSections: Section[] = [
       { href: "/tools/encrypt-pdf", en: "Encrypt / Decrypt", ro: "Criptare / Decriptare" },
       { href: "/tools/extract-images", en: "Extract Images", ro: "Extrage Imagini" },
       { href: "/tools/delete-pages", en: "Delete Pages", ro: "Șterge Pagini" },
+      { href: "/tools/extract-pages", en: "Extract Pages", ro: "Extrage Pagini" },
+      { href: "/tools/reorganize-pdf", en: "Reorganize Pages", ro: "Reorganizează Pagini" },
+      { href: "/tools/sign-pdf", en: "Sign PDF", ro: "Semnează PDF" },
+      { href: "/tools/stamp", en: "Add Stamp", ro: "Adaugă Ștampilă" },
+      { href: "/tools/header-footer", en: "Header & Footer", ro: "Antet & Subsol" },
+      { href: "/tools/flatten-pdf", en: "Flatten PDF", ro: "Aplatizează PDF" },
+      { href: "/tools/repair-pdf", en: "Repair PDF", ro: "Repară PDF" },
+      { href: "/tools/compare-pdf", en: "Compare PDFs", ro: "Compară PDF-uri" },
+      { href: "/tools/edit-metadata", en: "Edit Metadata", ro: "Editează Metadata" },
+      { href: "/tools/pdf-info", en: "PDF Info", ro: "Info PDF" },
     ],
   },
   {
@@ -53,6 +63,10 @@ const defaultSections: Section[] = [
     items: [
       { href: "/tools/ocr", en: "OCR (Image → Text)", ro: "OCR (Imagine → Text)" },
       { href: "/tools/remove-bg", en: "Remove Background", ro: "Elimină Fundal" },
+      { href: "/tools/adjust-colors", en: "Adjust Colors", ro: "Ajustează Culori" },
+      { href: "/tools/background-color", en: "Background Color", ro: "Culoare Fundal" },
+      { href: "/tools/scanner-effect", en: "Scanner Effect", ro: "Efect Scanner" },
+      { href: "/tools/rasterize-pdf", en: "Rasterize PDF", ro: "Rasterizează PDF" },
     ],
   },
   {
@@ -117,6 +131,7 @@ export default function AllToolsPage() {
 
   const [sections, setSections] = useState<Section[]>(defaultSections)
   const [editMode, setEditMode] = useState(false)
+  const [search, setSearch] = useState("")
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragItem, setDragItem] = useState<{ sIdx: number; iIdx: number } | null>(null)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
@@ -201,6 +216,15 @@ export default function AllToolsPage() {
   const pageTitle = l === "ro" ? "Toate Instrumentele & Conversiile" : "All Tools & Conversions"
   const pageSub = l === "ro" ? "Tot ce ai nevoie pentru a lucra cu documente, într-un singur loc." : "Everything you need to work with documents, all in one place."
 
+  const filteredSections = useMemo(() => {
+    if (!search.trim()) return sections
+    const q = search.toLowerCase()
+    return sections.map(s => ({
+      ...s,
+      items: s.items.filter(i => i.en.toLowerCase().includes(q) || i.ro.toLowerCase().includes(q) || i.href.toLowerCase().includes(q)),
+    })).filter(s => s.items.length > 0)
+  }, [sections, search])
+
   return (
     <div className={`min-h-screen ${cm ? "bg-gray-50 text-black" : "bg-[#0a0e1a] text-white"}`}>
       <Navbar lang={lang} setLang={setLang} classicMode={cm} setClassicMode={setClassicMode} />
@@ -228,6 +252,17 @@ export default function AllToolsPage() {
         <div className="text-center mb-10">
           <h1 className={`text-3xl sm:text-4xl font-bold ${cm ? "text-gray-900" : "text-white"}`}>{pageTitle}</h1>
           <p className={`mt-2 text-sm ${cm ? "text-gray-500" : "text-white/40"}`}>{pageSub}</p>
+          <div className="mt-5 max-w-md mx-auto relative">
+            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${cm ? "text-gray-400" : "text-white/30"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={l === "ro" ? "Caută instrumente..." : "Search tools..."}
+              className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border focus:outline-none focus:ring-2 transition ${cm ? "bg-white border-gray-200 text-gray-700 focus:ring-blue-400/30 placeholder:text-gray-400" : "bg-white/5 border-white/10 text-white focus:ring-blue-500/30 placeholder:text-white/30"}`}
+            />
+            {search && <button onClick={() => setSearch("")} className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs ${cm ? "text-gray-400 hover:text-gray-600" : "text-white/30 hover:text-white"}`}>✕</button>}
+          </div>
           {isOwner && (
             <button onClick={() => setEditMode(!editMode)} className={`mt-4 px-4 py-2 rounded-xl text-xs font-bold transition-all ${editMode ? "bg-green-500 text-white" : cm ? "bg-gray-200 text-gray-600 hover:bg-gray-300" : "bg-white/10 text-white/60 hover:bg-white/15"}`}>
               {editMode ? (l === "ro" ? "✓ Gata" : "✓ Done") : (l === "ro" ? "✏️ Editează Ordinea" : "✏️ Edit Order")}
@@ -236,7 +271,7 @@ export default function AllToolsPage() {
         </div>
 
         <div className="space-y-8">
-          {sections.map((section, sIdx) => (
+          {filteredSections.map((section, sIdx) => (
             <div key={section.id}
               draggable={editMode}
               onDragStart={() => handleDragStart(sIdx)}

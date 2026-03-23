@@ -16,7 +16,7 @@ export function usePing() {
       fetch("/api/ping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId: getVisitorId() }),
+        body: JSON.stringify({ visitorId: getVisitorId(), page: window.location.pathname }),
       }).catch(() => {})
     }
     ping()

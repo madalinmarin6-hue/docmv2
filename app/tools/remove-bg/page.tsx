@@ -103,7 +103,6 @@ export default function RemoveBgPage() {
       setProgress(30)
 
       const resultBlob = await removeBackground(imageFile, {
-        publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/",
         model: "medium" as any,
         progress: (key: string, current: number, total: number) => {
           if (total > 0) {
@@ -113,7 +112,7 @@ export default function RemoveBgPage() {
             else if (key === "fetch:onnx") setStatusMsg("Downloading AI model...")
           }
         },
-      })
+      } as any)
 
       setProgress(90)
       setStatusMsg("Rendering result...")

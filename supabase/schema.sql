@@ -110,7 +110,12 @@ CREATE TABLE reviews (
 CREATE TABLE active_visitors (
   visitor_id TEXT PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  last_ping TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  last_ping TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ip TEXT,
+  page TEXT DEFAULT '/',
+  country TEXT,
+  city TEXT,
+  first_seen TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Cloud Files (user storage)
